@@ -3,69 +3,54 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>AI Agent — Quick Test</title>
+  <title>Mogul Agent</title>
   <link rel="stylesheet" href="./styles.css"/>
 </head>
-<body>
-  <div class="wrap">
-    <div class="chat">
-      <header>
-        <div class="head">
-          <h1>AI Support</h1>
-          <div id="status" class="status">loading…</div>
-        </div>
-        <p>Try: <em>“Book me Tuesday at 3pm”</em></p>
-      </header>
 
-      <div
-        id="messages"
-        class="messages"
-        aria-live="polite"
-        aria-label="Chat transcript">
-      </div>
+<!-- start in hero-mode -->
+<body class="hero-mode">
+  <div class="page">
 
-      <!-- Composer -->
-      <form id="form" class="composer" autocomplete="off">
-        <div class="bar">
-          <!-- Attach button (placeholder / optional) -->
+    <!-- Greeting / hero headline (will hide after chat starts) -->
+    <section class="hero" id="hero">
+      <h1 class="hero-headline">What’s on the agenda today?</h1>
+
+      <!-- Composer shown IN hero for first load -->
+      <form id="form" class="composer hero-composer" autocomplete="off">
+        <div class="composer-bar">
+          <!-- plus / attach -->
           <button
             type="button"
             id="attach"
-            class="icon-btn"
-            title="Attach"
+            class="icon-btn attach-btn"
             aria-label="Attach"
           >
-            <!-- plus icon -->
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                 aria-hidden="true">
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 5v14M5 12h14"/>
             </svg>
           </button>
 
-          <!-- User text input -->
+          <!-- message text -->
           <textarea
             id="input"
             rows="1"
-            placeholder="Ask anything..."
+            placeholder="Ask anything"
             aria-label="Your message"
           ></textarea>
 
-          <!-- Right side: mic + send -->
+          <!-- right side controls -->
           <div class="right">
-            <!-- mic wrap for glow while recording -->
+            <!-- mic wrap (press & hold to talk) -->
             <div class="mic-wrap" id="micWrap">
               <button
                 type="button"
                 id="mic"
-                class="icon-btn"
-                title="Hold to talk"
-                aria-label="Voice"
+                class="icon-btn mic-btn"
+                aria-label="Hold to talk"
               >
-                <!-- mic icon -->
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                     aria-hidden="true">
+                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M12 1a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
                   <path d="M19 10a7 7 0 0 1-14 0"/>
                   <path d="M12 19v4"/>
@@ -73,37 +58,97 @@
               </button>
             </div>
 
-            <!-- send button (only shows when there's text) -->
+            <!-- send button (only when typing) -->
             <button
               type="submit"
               id="send"
-              class="icon-btn primary"
-              title="Send"
+              class="icon-btn send-btn"
               aria-label="Send"
             >
-              <!-- send / arrow icon -->
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                   aria-hidden="true">
+                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M5 12h14M12 5l7 7-7 7"/>
               </svg>
             </button>
           </div>
         </div>
-
-        <div class="hint">
-          Press <kbd>Enter</kbd> to send •
-          <kbd>Shift</kbd>+<kbd>Enter</kbd> for a new line
-        </div>
       </form>
+    </section>
 
-      <!-- hidden audio player for assistant voice replies -->
-      <audio id="voicePlayer" autoplay style="display:none;"></audio>
+    <!-- Chat transcript (hidden empty at first, then fills and shifts layout) -->
+    <section
+      id="messages"
+      class="messages"
+      aria-live="polite"
+      aria-label="Chat transcript">
+    </section>
 
-    </div><!-- .chat -->
-  </div><!-- .wrap -->
+    <!-- Composer DOCK version (bottom fixed). Hidden until chat starts. -->
+    <form id="form-docked" class="composer dock-composer" autocomplete="off">
+      <div class="composer-bar">
+        <button
+          type="button"
+          class="icon-btn attach-btn"
+          aria-label="Attach"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 5v14M5 12h14"/>
+          </svg>
+        </button>
 
-  <!-- IMPORTANT: relative paths because page is served at /ui/ -->
+        <textarea
+          id="input-docked"
+          rows="1"
+          placeholder="Ask anything"
+          aria-label="Your message"
+        ></textarea>
+
+        <div class="right">
+          <div class="mic-wrap" id="micWrap-docked">
+            <button
+              type="button"
+              id="mic-docked"
+              class="icon-btn mic-btn"
+              aria-label="Hold to talk"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 1a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                <path d="M19 10a7 7 0 0 1-14 0"/>
+                <path d="M12 19v4"/>
+              </svg>
+            </button>
+          </div>
+
+          <button
+            type="submit"
+            id="send-docked"
+            class="icon-btn send-btn"
+            aria-label="Send"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </form>
+
+    <!-- hidden audio player for assistant voice replies -->
+    <audio id="voicePlayer" autoplay style="display:none;"></audio>
+  </div>
+
+  <!-- calendar modal (keep feature) -->
+  <div class="cal-modal" id="cal-modal">
+    <div class="cal-dialog">
+      <button class="cal-close" id="cal-close" aria-label="Close">✕</button>
+      <div class="cal-inline" id="cal-inline"></div>
+      <div class="cal-fallback-wrap" id="cal-fallback"></div>
+    </div>
+  </div>
+
   <script defer src="./chat.js"></script>
 </body>
 </html>

@@ -1,155 +1,306 @@
-/* ========== Base Theme Tokens ========== */
 :root {
-  --bg:#0b1220;
-  --panel:#0e1630;
-  --panel-2:#0f1733;
-  --muted:#a9b3cf;
-  --text:#e8eefc;
-  --accent:#3b82f6;
-  --border:rgba(255,255,255,.08);
-  --border2:rgba(255,255,255,.06);
+  --bg-main:#000000;
+  --surface:#1a1a1a;
+  --surface-border:#2a2a2a;
+  --bubble-user:#2a2a2a;
+  --bubble-ai:#1f1f1f;
+  --text-primary:#ffffff;
+  --text-muted:#9ca3af;
+  --accent:#FFB906;
+  --accent-text:#000000;
+  --radius-xl:28px;
+  --radius-lg:14px;
+  --radius-md:10px;
+  --shadow-bar:0 20px 40px rgba(0,0,0,.8);
+  --shadow-bubble:0 16px 32px rgba(0,0,0,.7);
+  --record-red:#ff4d4d;
+  --record-glow:rgba(255,77,77,.7);
 }
 
+/* reset */
 * {
   box-sizing:border-box;
+  -webkit-font-smoothing:antialiased;
 }
 
+/* PAGE IS NOW SCROLLABLE LIKE NORMAL */
 body {
   margin:0;
+  background:var(--bg-main);
+  color:var(--text-primary);
   font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Arial;
-  background:var(--bg);
-  color:var(--text);
+
+  /* allow normal scrolling */
+  min-height:100dvh;
+  display:flex;
+  flex-direction:column;
+  overflow-y:auto;
 }
 
-.wrap {
-  min-height:100dvh;
+/* page wrapper centers content and applies max-width */
+.page {
+  width:100%;
+  max-width:900px;
+  margin:0 auto;
+  padding:24px 16px 120px; /* bottom padding so bubbles don't get hidden behind sticky bar */
+  position:relative;
+  display:flex;
+  flex-direction:column;
+}
+
+/* =========================================================
+   HERO (landing screen before chat starts)
+   ========================================================= */
+.hero {
+  width:100%;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+
+  min-height:50vh; /* simpler: center-ish */
+  text-align:center;
+  transition:
+    opacity .2s ease,
+    max-height .2s ease,
+    margin .2s ease;
+}
+
+.hero-headline {
+  margin:0 0 24px;
+  font-size:32px;
+  font-weight:600;
+  color:var(--text-primary);
+  line-height:1.2;
+}
+
+.hero-composer {
+  display:flex;
+  justify-content:center;
+  width:100%;
+}
+.hero-composer .composer-bar {
+  width:min(760px,90%);
+  max-width:760px;
+}
+
+/* after chat starts, hide hero */
+body.has-started .hero {
+  opacity:0;
+  max-height:0;
+  margin:0;
+  overflow:hidden;
+}
+body.has-started .hero-composer {
+  display:none;
+}
+
+/* =========================================================
+   DOCKED / STICKY COMPOSER
+   ========================================================= */
+
+/*
+Now it's STICKY instead of FIXED.
+This means: it sits at the bottom of the viewport, but it is still
+part of the normal flow of the page. As you scroll up, it stays
+in view. As you scroll down, you see older messages above it.
+*/
+
+.dock-composer {
+  position:sticky;
+  bottom:0;
+  left:0;
+  right:0;
+
+  background:var(--bg-main);
+  border-top:1px solid var(--surface-border);
+
+  padding:16px 16px 24px;
+  display:flex;
+  justify-content:center;
+  z-index:50;
+
+  /* hidden until chat actually starts */
+  visibility:hidden;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .2s ease;
+}
+
+.dock-composer .composer-bar {
+  max-width:760px;
+  width:100%;
+}
+
+body.has-started .dock-composer {
+  visibility:visible;
+  opacity:1;
+  pointer-events:auto;
+}
+
+body.hero-mode .dock-composer {
+  visibility:hidden;
+  opacity:0;
+  pointer-events:none;
+}
+
+/* =========================================================
+   COMPOSER BAR (shared styles for hero + dock)
+   ========================================================= */
+.composer-bar {
+  display:flex;
+  align-items:center;
+  gap:12px;
+  background:var(--surface);
+  border:1px solid var(--surface-border);
+  border-radius:var(--radius-xl);
+  padding:14px 16px;
+  box-shadow:var(--shadow-bar);
+  color:var(--text-primary);
+}
+
+.icon-btn {
+  width:40px;
+  height:40px;
   display:grid;
   place-items:center;
-  padding:24px;
+  border-radius:var(--radius-md);
+  border:1px solid transparent;
+  background:transparent;
+  color:var(--text-primary);
+  cursor:pointer;
+  transition:.15s ease;
+}
+.icon-btn svg {
+  width:20px;
+  height:20px;
+  color:currentColor;
 }
 
-/* main chat container */
-.chat {
-  width:min(1000px,100%);
-  background:var(--panel);
-  border-radius:16px;
-  box-shadow:0 10px 30px rgba(0,0,0,.35);
-  overflow:hidden;
-  border:1px solid var(--border);
-  display:flex;
-  flex-direction:column;
+.attach-btn,
+.mic-btn,
+.send-btn {
+  flex-shrink:0;
 }
 
-/* ========== Header / Status Row ========== */
-header {
-  padding:16px 20px;
-  border-bottom:1px solid var(--border);
-  color:var(--text);
-  font-size:13px;
+/* send button (orange) */
+.send-btn {
+  background:var(--accent);
+  color:var(--accent-text);
+  border-color:var(--accent);
+  border-radius:var(--radius-md);
+  font-weight:500;
+  min-width:40px;
+}
+.send-btn:hover {
+  filter:brightness(1.05);
 }
 
-.head {
-  display:flex;
-  flex-wrap:wrap;
-  justify-content:space-between;
-  align-items:flex-start;
-  gap:12px;
+/* mic idle */
+.mic-btn {
+  background:transparent;
+  border-color:transparent;
+  color:var(--text-primary);
+}
+.mic-btn:hover {
+  color:var(--accent);
 }
 
-.title-col h1,
-header h1 {
-  margin:0;
-  font-size:18px;
-  font-weight:600;
-  color:#fff;
+/* mic recording glow */
+.mic-wrap.recording {
+  box-shadow:
+    0 0 16px var(--record-glow),
+    0 12px 32px rgba(0,0,0,.9);
+  border-radius:var(--radius-md);
+  outline:2px solid var(--record-red);
+  outline-offset:2px;
+}
+.mic-btn.recording svg {
+  color:var(--record-red);
+  filter:drop-shadow(0 0 6px var(--record-glow));
 }
 
-.title-col .hint-line,
-header p {
-  margin:4px 0 0;
-  font-size:13px;
-  color:var(--muted);
-}
-
-.status,
-.status-col {
-  display:flex;
-  flex-wrap:wrap;
-  gap:6px;
-  font-size:12px;
-  color:#c7d2fe;
-  background:#111a3c;
-  border:1px solid #253068;
-  padding:4px 8px;
-  border-radius:8px;
-}
-
-.status-col {
+/* textarea */
+.composer-bar textarea {
+  flex:1;
   background:transparent;
   border:0;
-  padding:0;
-  border-radius:0;
+  color:var(--text-primary);
+  font-size:16px;
+  line-height:1.4;
+  resize:none;
+  outline:0;
+  padding:8px 0;
+  min-height:24px;
+  max-height:140px;
+}
+.composer-bar textarea::placeholder {
+  color:var(--text-muted);
 }
 
-.pill {
-  border-radius:8px;
-  background:#1a2444;
-  border:1px solid rgba(255,255,255,.08);
-  padding:3px 8px;
-  line-height:1.2;
-  color:#e8eefc;
-  font-size:12px;
+/* send / mic swap */
+#send,
+#send-docked {
+  display:none;
 }
-.pill.ok {
-  background:#1f2f57;
-  color:#7CFFA5;
-  border-color:rgba(124,255,165,.3);
+.typing-mode .right #send,
+.typing-mode .right #send-docked {
+  display:grid;
 }
-.pill.bad {
-  background:#3a1f2f;
-  color:#ff6b6b;
-  border-color:rgba(255,107,107,.3);
+.typing-mode .right #micWrap,
+.typing-mode .right #micWrap-docked {
+  display:none;
 }
 
-/* ========== Messages Pane ========== */
+/* =========================================================
+   MESSAGES
+   ========================================================= */
+
+/*
+Now messages are just in the normal flow of the page.
+No special flex scroll. No overflow tricks.
+The page scrolls normally.
+*/
+
 .messages {
-  flex:1;
-  height:min(60vh,600px);
-  overflow:auto;
-  padding:16px;
   display:flex;
   flex-direction:column;
-  gap:12px;
-  background:
-    radial-gradient(circle at 20% 20%,rgba(59,130,246,.07) 0%,rgba(0,0,0,0) 70%),
-    linear-gradient(180deg,#0f1733 0,var(--bg) 100%);
+  gap:16px;
+  max-width:760px;
+  width:100%;
+  margin:0 auto 40px auto;
+  position:relative;
+  z-index:1;
 }
 
-/* message bubbles */
+/* bubbles */
 .msg {
   max-width:80%;
-  padding:10px 12px;
-  border-radius:12px;
+  padding:12px 16px;
+  border-radius:var(--radius-lg);
+  font-size:15px;
+  line-height:1.4;
+  box-shadow:var(--shadow-bubble);
   white-space:pre-wrap;
   word-break:break-word;
-  line-height:1.35;
-  font-size:14px;
-  border:1px solid var(--border2);
+  border:1px solid transparent;
+  color:var(--text-primary);
 }
 
 .msg.user {
-  margin-left:auto;
-  background:#223055;
-  color:var(--text);
+  align-self:flex-end;
+  background:var(--bubble-user);
+  border-color:#3a3a3a;
 }
 
 .msg.assistant {
-  margin-right:auto;
-  background:#1a2444;
-  color:#e8eefc;
+  align-self:flex-start;
+  background:var(--bubble-ai);
+  border-color:#2a2a2a;
 }
+
 .msg.assistant a {
-  color:#93c5fd;
+  color:var(--accent);
   text-decoration:underline;
 }
 
@@ -158,193 +309,41 @@ header p {
   font-style:italic;
 }
 
-/* system / status bubble (used for "Listening...") */
+/* listening bubble */
 .msg.system {
-  margin-right:auto;
-  background:#10192f;
-  color:#7ca2ff;
-  font-size:13px;
+  align-self:flex-start;
+  background:#111;
+  color:var(--accent);
+  border:1px solid rgba(255,185,6,.4);
+  border-radius:var(--radius-lg);
+  font-size:14px;
   font-style:italic;
-  line-height:1.35;
-  padding:10px 12px;
-  border-radius:12px;
-  border:1px solid rgba(124,162,255,.3);
-  opacity:.9;
+  line-height:1.4;
+  padding:12px 16px;
   display:flex;
   align-items:center;
   gap:6px;
 }
 
-/* animated dots after Listening */
 .listening-dots::after {
   content:"";
   display:inline-block;
   width:2ch;
   text-align:left;
-  color:#7ca2ff;
+  color:var(--accent);
   animation:dots-step 1s steps(4,end) infinite;
 }
 @keyframes dots-step {
-  0%   { content:"";   }
-  25%  { content:".";  }
+  0%   { content:""; }
+  25%  { content:"."; }
   50%  { content:".."; }
-  75%  { content:"...";}
-  100% { content:"";   }
+  75%  { content:"..."; }
+  100% { content:""; }
 }
 
-/* ========== Composer / Input Row ========== */
-.composer {
-  border-top:1px solid var(--border);
-  background:var(--panel-2);
-  padding:12px;
-  display:flex;
-  flex-direction:column;
-  gap:8px;
-  font-size:13px;
-}
-
-.bar {
-  display:flex;
-  align-items:center;
-  gap:10px;
-  background:#0b1220;
-  border:1px solid #2b3861;
-  border-radius:12px;
-  padding:8px 10px;
-}
-
-/* left attach button, mic, send all inherit this */
-.icon-btn {
-  width:38px;
-  height:38px;
-  display:grid;
-  place-items:center;
-  border-radius:10px;
-  border:1px solid transparent;
-  background:#1e253f;
-  color:#cfd6f7;
-  cursor:pointer;
-  flex:0 0 auto;
-  box-shadow:0 8px 20px rgba(0,0,0,.6);
-  transition:all .15s ease;
-}
-.icon-btn:hover {
-  background:#142146;
-  border-color:#253068;
-}
-.icon-btn.primary {
-  background:var(--accent);
-  color:#fff;
-  border-color:transparent;
-}
-.icon-btn.primary:hover {
-  filter:brightness(1.05);
-}
-.icon-btn:disabled {
-  opacity:.55;
-  cursor:not-allowed;
-}
-.icon-btn svg {
-  width:18px;
-  height:18px;
-  color:currentColor;
-}
-
-/* textarea */
-.composer textarea {
-  flex:1;
-  border:0;
-  outline:0;
-  background:transparent;
-  color:var(--text);
-  padding:10px 6px 10px 2px;
-  resize:none;
-  max-height:160px;
-  min-height:24px;
-  font-size:15px;
-  line-height:1.4;
-}
-.composer textarea::placeholder {
-  color:#6b7280;
-}
-
-/* right side of bar: mic + send */
-.right {
-  display:flex;
-  align-items:center;
-  gap:8px;
-}
-
-/* mic wrapper: lets us glow the container, not just the SVG */
-.mic-wrap {
-  position:relative;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-
-/* send button is hidden when no text.
-   micWrap is hidden when there IS text.
-   JS toggles .typing-mode on .composer */
-.composer .right #send {
-  display:none;
-}
-.composer.typing-mode .right #send {
-  display:inline-flex;
-}
-.composer.typing-mode .right #micWrap {
-  display:none;
-}
-
-/* live mic visuals (recording press+hold state) */
-#micWrap.recording {
-  outline:2px solid #7ca2ff;
-  outline-offset:2px;
-  border-radius:10px;
-  box-shadow:
-    0 0 16px rgba(124,162,255,.6),
-    0 12px 32px rgba(0,0,0,.8);
-}
-#mic.recording svg {
-  color:#ff4d4d;
-  filter:drop-shadow(0 0 6px rgba(255,68,68,.8));
-}
-
-/* hint row under composer */
-.hint,
-.composer-hint {
-  color:var(--muted);
-  font-size:12px;
-  display:flex;
-  flex-wrap:wrap;
-  gap:6px;
-  line-height:1.4;
-  opacity:.9;
-}
-kbd {
-  background:#1a2444;
-  color:#e8eefc;
-  border-radius:4px;
-  border:1px solid rgba(255,255,255,.12);
-  font-size:11px;
-  padding:2px 4px;
-  line-height:1.2;
-}
-
-/* small spinner you used for send states (kept just in case) */
-.spinner {
-  width:16px;
-  height:16px;
-  border-radius:50%;
-  border:2px solid rgba(255,255,255,.35);
-  border-top-color:#fff;
-  animation:spin 1s linear infinite;
-}
-@keyframes spin {
-  to { transform:rotate(360deg); }
-}
-
-/* ========== Calendar Modal ========== */
+/* =========================================================
+   CALENDAR MODAL
+   ========================================================= */
 .cal-modal {
   position:fixed;
   inset:0;
@@ -353,14 +352,14 @@ kbd {
   align-items:center;
   justify-content:center;
   padding:16px;
-  z-index:40;
+  z-index:100;
 }
 .cal-modal.open {
   display:flex;
 }
 .cal-dialog {
-  background:#0f1733;
-  color:#e8eefc;
+  background:#111;
+  color:var(--text-primary);
   width:min(500px,100%);
   max-height:90vh;
   overflow:auto;
@@ -375,9 +374,9 @@ kbd {
   position:absolute;
   top:8px;
   right:8px;
-  background:#1e253f;
+  background:#1f1f1f;
   border:0;
-  color:#e8eefc;
+  color:var(--text-primary);
   border-radius:8px;
   cursor:pointer;
   line-height:1;
@@ -392,21 +391,22 @@ kbd {
   margin-top:12px;
 }
 .cal-fallback-wrap a {
-  color:#93c5fd;
+  color:var(--accent);
   text-decoration:underline;
 }
 
-/* audio element should stay hidden visually but present in DOM */
-#voicePlayer {
-  display:none;
-}
-
-/* ========== Responsive tweaks ========== */
-@media (max-width:640px){
-  .messages{
-    height:55vh;
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+@media(max-width:600px){
+  .hero-headline {
+    font-size:28px;
   }
-  .msg{
-    max-width:92%;
+  .composer-bar {
+    border-radius:20px;
+  }
+  .msg {
+    max-width:90%;
+    font-size:14px;
   }
 }

@@ -1,16 +1,24 @@
-// ===== selectors =====
-const $msgs    = document.getElementById('messages');
-const $form    = document.getElementById('form');
-const $input   = document.getElementById('input');      // textarea
-const $status  = document.getElementById('status');
-const $send    = document.getElementById('send');
-const $mic     = document.getElementById('mic');
-const $player  = document.getElementById('voicePlayer');
+// ===== DOM refs (we will reassign after transition) =====
+let $msgs          = document.getElementById('messages');
 
-// NEW: mic wrap for glow
-const $micWrap = document.getElementById('micWrap');
+// HERO composer refs
+let $form          = document.getElementById('form');
+let $input         = document.getElementById('input');
+let $mic           = document.getElementById('mic');
+let $micWrap       = document.getElementById('micWrap');
+let $send          = document.getElementById('send');
 
-// calendar modal bits ...
+// DOCKED composer refs
+const $formDock    = document.getElementById('form-docked');
+const $inputDock   = document.getElementById('input-docked');
+const $micDock     = document.getElementById('mic-docked');
+const $micWrapDock = document.getElementById('micWrap-docked');
+const $sendDock    = document.getElementById('send-docked');
+
+// audio player
+const $player      = document.getElementById('voicePlayer');
+
+// calendar modal bits
 const $calModal    = document.getElementById('cal-modal');
 const $calClose    = document.getElementById('cal-close');
 const $calInline   = document.getElementById('cal-inline');
@@ -27,63 +35,56 @@ let mediaRecorder = null;
 let micChunks = [];
 let isRecording = false;
 
-// tracks whether the last user message came from voice capture
+// whether last user message was voice
 let lastCaptureWasVoice = false;
 
-// NEW: track the "Listening..." bubble DOM node so we can upgrade it later
+// "Listening..." bubble node
 let listeningBubbleEl = null;
 
-/* --------------------------
-   Health check -> status pills
---------------------------- */
-(async function pingHealth() {
-  try {
-    const r = await fetch('/healthz');
-    const h = await r.json();
-
-    function pill(label, good = true) {
-      const span = document.createElement('span');
-      span.className = 'pill ' + (good ? 'ok' : 'bad');
-      span.textContent = label + (good ? ' ✅' : ' ❌');
-      return span;
-    }
-
-    if ($status) {
-      $status.innerHTML = '';
-      $status.classList.add('status-col');
-
-      $status.appendChild(pill('server', !!h.ok));
-      $status.appendChild(pill('openai', !!h.openai));
-      $status.appendChild(pill('firestore', !!h.firestore));
-
-      const modelSpan = document.createElement('span');
-      modelSpan.className = 'pill ok';
-      modelSpan.textContent = 'model ' + (h.model || 'n/a');
-      $status.appendChild(modelSpan);
-    }
-  } catch (e) {
-    if ($status) {
-      $status.innerHTML = '';
-      $status.classList.add('status-col');
-      const errSpan = document.createElement('span');
-      errSpan.className = 'pill bad';
-      errSpan.textContent = 'health ❌ ' + e.message;
-      $status.appendChild(errSpan);
-    }
-  }
-})();
+// whether we've already switched from hero-mode -> chat mode
+let chatStarted = false;
 
 /* --------------------------
-   Helpers
+   Internal helpers
 --------------------------- */
+
+function activateDockMode() {
+  if (chatStarted) return;
+  chatStarted = true;
+
+  // copy any text in hero input into docked input
+  $inputDock.value = $input.value;
+
+  // flip body classes
+  document.body.classList.remove('hero-mode');
+  document.body.classList.add('has-started');
+
+  // now point our working refs at the docked elements
+  $form    = $formDock;
+  $input   = $inputDock;
+  $mic     = $micDock;
+  $micWrap = $micWrapDock;
+  $send    = $sendDock;
+
+  // bind composer events to docked controls now that they are "active"
+  wireComposerEvents();
+}
+
 function linkify(str) {
   return (str || "").replace(
     /(https?:\/\/[^\s]+)/g,
-    (url) => `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`
+    (url) =>
+      `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`
   );
 }
 
+// add a message bubble
 function append(role, text, thinking = false) {
+  // first real chat bubble triggers dock mode
+  if ((role === 'user' || role === 'assistant') && !chatStarted) {
+    activateDockMode();
+  }
+
   const div = document.createElement('div');
   div.className = 'msg ' + role + (thinking ? ' thinking' : '');
 
@@ -98,16 +99,19 @@ function append(role, text, thinking = false) {
   return div;
 }
 
-// special append just for listening bubble
+// show "Listening..." temp bubble
 function showListeningBubble() {
+  if (!chatStarted) activateDockMode();
+
   listeningBubbleEl = document.createElement('div');
   listeningBubbleEl.className = 'msg system';
-  listeningBubbleEl.innerHTML = `<span>Listening</span><span class="listening-dots"></span>`;
+  listeningBubbleEl.innerHTML =
+    `<span>Listening</span><span class="listening-dots"></span>`;
   $msgs.appendChild(listeningBubbleEl);
   $msgs.scrollTop = $msgs.scrollHeight;
 }
 
-// turn listening bubble into either user voice message or an error
+// finalize listening -> user text or error
 function finalizeListeningBubble(textOrError, isError=false) {
   if (!listeningBubbleEl) return;
 
@@ -122,7 +126,7 @@ function finalizeListeningBubble(textOrError, isError=false) {
   listeningBubbleEl = null;
 }
 
-// capture name/email from user text
+// store detected name/email
 function captureIdentity(text) {
   const emailMatch = text.match(/([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})/i);
   if (emailMatch) lastEmail = emailMatch[1];
@@ -132,19 +136,24 @@ function captureIdentity(text) {
 }
 
 /* --------------------------
-   Calendar stuff
+   Calendar stuff (stubs)
 --------------------------- */
-async function loadCalConfig() { /* unchanged */ }
-function openCalModal() { /* unchanged */ }
-function closeCalModal() { /* unchanged */ }
-if ($calClose) { $calClose.addEventListener('click', closeCalModal); }
+async function loadCalConfig() { /* hook up your /v1/cal-config if you have it */ }
+function openCalModal() { if ($calModal) $calModal.classList.add('open'); }
+function closeCalModal() { if ($calModal) $calModal.classList.remove('open'); }
+
+if ($calClose) {
+  $calClose.addEventListener('click', closeCalModal);
+}
 if ($calModal) {
   $calModal.addEventListener('click', (e)=> {
     if (e.target === $calModal) closeCalModal();
   });
 }
-async function renderCalInline() { /* unchanged */ }
+
+async function renderCalInline() { /* you can embed Cal.com iframe here */ }
 async function openCalendar() { openCalModal(); await renderCalInline(); }
+
 function maybeTriggerCalendar(assistantText) {
   const t = (assistantText || "").toLowerCase();
   const trigger = /(when would you like to book|what time works|choose a time|pick a time|ready to schedule|select a time|book a time)/i;
@@ -154,7 +163,7 @@ function maybeTriggerCalendar(assistantText) {
 }
 
 /* --------------------------
-   Send chat to backend
+   Backend chat send
 --------------------------- */
 async function sendChatOnce() {
   const bubble = append('assistant', '…', true);
@@ -169,7 +178,8 @@ async function sendChatOnce() {
     if (!res.ok) {
       const errText = await res.text().catch(()=>res.statusText);
       bubble.classList.remove('thinking');
-      bubble.innerHTML = `⚠️ ${res.status} ${res.statusText}: ${linkify(errText)}`;
+      bubble.innerHTML =
+        `⚠️ ${res.status} ${res.statusText}: ${linkify(errText)}`;
       return;
     }
 
@@ -184,7 +194,7 @@ async function sendChatOnce() {
 
     maybeTriggerCalendar(text);
 
-    // ✅ Only speak out loud if last message was voice
+    // speak only if last message was voice
     if (lastCaptureWasVoice) {
       speakText(text);
     }
@@ -197,9 +207,9 @@ async function sendChatOnce() {
 }
 
 /* --------------------------
-   TEXT SUBMIT
+   Handle text submit (current active composer)
 --------------------------- */
-$form.addEventListener('submit', async (e)=>{
+async function handleSubmit(e){
   e.preventDefault();
   const text = $input.value.trim();
   if (!text) return;
@@ -214,14 +224,14 @@ $form.addEventListener('submit', async (e)=>{
 
   updateComposerMode();
 
-  // typed message → no voice reply
+  // typed msg -> do not auto-speak assistant
   lastCaptureWasVoice = false;
 
   await sendChatOnce();
-});
+}
 
 /* --------------------------
-   VOICE HELPERS
+   Voice helpers
 --------------------------- */
 async function handleVoiceMessage(audioBlob){
   const fd = new FormData();
@@ -258,14 +268,14 @@ async function handleVoiceMessage(audioBlob){
   finalizeListeningBubble(heardText, false);
   history.push({ role:'user', content: heardText });
 
-  // voice message → enable TTS for next assistant reply
+  // voice message -> we want assistant to talk back
   lastCaptureWasVoice = true;
 
   await sendChatOnce();
 }
 
 /* --------------------------
-   SPEAK TEXT
+   TTS playback of assistant
 --------------------------- */
 async function speakText(text){
   if (!text || !$player) return;
@@ -286,15 +296,16 @@ async function speakText(text){
 }
 
 /* --------------------------
-   MIC BUTTON (press + hold)
+   Mic press+hold -> record
 --------------------------- */
 async function startRecording(){
   if(isRecording) return;
   isRecording = true;
 
-  if ($mic)    $mic.classList.add('recording');
-  if ($micWrap)$micWrap.classList.add('recording');
+  if ($mic)     $mic.classList.add('recording');
+  if ($micWrap) $micWrap.classList.add('recording');
 
+  // show "Listening..." bubble immediately
   showListeningBubble();
 
   micChunks = [];
@@ -316,8 +327,8 @@ async function stopRecording(){
   if(!isRecording) return;
   isRecording = false;
 
-  if ($mic)    $mic.classList.remove('recording');
-  if ($micWrap)$micWrap.classList.remove('recording');
+  if ($mic)     $mic.classList.remove('recording');
+  if ($micWrap) $micWrap.classList.remove('recording');
 
   return new Promise((resolve)=>{
     mediaRecorder.onstop = async ()=>{
@@ -330,22 +341,12 @@ async function stopRecording(){
   });
 }
 
-// bind press+hold exactly like your original code
-if ($mic) {
-  $mic.addEventListener('mousedown', startRecording);
-  $mic.addEventListener('touchstart', (e)=>{
-    e.preventDefault();
-    startRecording();
-  });
-}
-window.addEventListener('mouseup', stopRecording);
-window.addEventListener('touchend', stopRecording);
-
 /* --------------------------
-   MIC/SEND SWAP LIKE CHATGPT
+   Typing-mode toggle
 --------------------------- */
 function updateComposerMode(){
   const hasText = $input.value.trim().length > 0;
+  // add/remove typing-mode class on the ACTIVE form
   if (hasText) {
     $form.classList.add('typing-mode');
     if (isRecording) stopRecording();
@@ -353,5 +354,46 @@ function updateComposerMode(){
     $form.classList.remove('typing-mode');
   }
 }
-$input.addEventListener('input', updateComposerMode);
-updateComposerMode();
+
+/* --------------------------
+   Wire up listeners for the ACTIVE composer
+   (we call this once at load for hero,
+    and again when we switch to dock mode)
+--------------------------- */
+function wireComposerEvents() {
+  // remove previous listeners first to avoid stacking duplicates
+  $form.onsubmit = null;
+  $input.oninput = null;
+
+  if ($mic) {
+    $mic.onmousedown = null;
+    $mic.ontouchstart = null;
+  }
+  window.onmouseup = null;
+  window.ontouchend = null;
+
+  // submit
+  $form.addEventListener('submit', handleSubmit);
+
+  // typing-mode swap mic/send
+  $input.addEventListener('input', updateComposerMode);
+  updateComposerMode();
+
+  // mic press+hold
+  if ($mic) {
+    $mic.addEventListener('mousedown', startRecording);
+    $mic.addEventListener('touchstart', (e)=>{
+      e.preventDefault();
+      startRecording();
+    });
+  }
+  window.addEventListener('mouseup', stopRecording);
+  window.addEventListener('touchend', stopRecording);
+}
+
+/* --------------------------
+   Init
+--------------------------- */
+
+// set up listeners for initial hero composer
+wireComposerEvents();

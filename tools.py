@@ -211,36 +211,3 @@ async def add_note(
 # ---------------------------------------------------------------------------------
 # FUTURE / NOT EXPOSED YET
 # ---------------------------------------------------------------------------------
-
-async def suggest_slots(
-    count: int = 3,
-    tz: str = DEFAULT_TZ
-) -> Dict[str, Any]:
-    """
-    Placeholder for future "what times do you have open?" logic.
-    Currently not exposed in TOOL_SCHEMA, so the model can't call it.
-    """
-    demo_slots: List[Dict[str, str]] = [
-        {
-            "start": "2025-10-25T16:00:00-04:00",
-            "end":   "2025-10-25T16:30:00-04:00",
-            "label": "Today 4:00–4:30 PM ET",
-        },
-        {
-            "start": "2025-10-26T10:00:00-04:00",
-            "end":   "2025-10-26T10:30:00-04:00",
-            "label": "Tomorrow 10:00–10:30 AM ET",
-        },
-        {
-            "start": "2025-10-27T14:00:00-04:00",
-            "end":   "2025-10-27T14:30:00-04:00",
-            "label": "Mon 2:00–2:30 PM ET",
-        },
-    ]
-
-    safe_count = max(1, min(count, len(demo_slots)))
-
-    return {
-        "proposed_slots": demo_slots[:safe_count],
-        "time_zone": tz,
-    }
