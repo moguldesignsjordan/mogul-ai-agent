@@ -1,9 +1,10 @@
-import os, json
-from typing import Dict, Any, AsyncGenerator, List
+import os, io, json
+from typing import Dict, Any, List
 from datetime import datetime
 from pathlib import Path
-
-from fastapi import FastAPI, Request
+from google.cloud import speech_v1p1beta1 as speech
+from google.cloud import texttospeech
+from fastapi import FastAPI, Request, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import (
     JSONResponse,
@@ -16,11 +17,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
-from tools import (
-    get_booking_link,
-    lookup_customer,
-    add_note,
-)
+# === local tools ===
+from tools import get_booking_link, lookup_customer, add_note
 
 # ── resolve .env next to main.py
 BASE_DIR = Path(__file__).resolve().parent
@@ -44,12 +42,11 @@ print(".env path:", ENV_PATH)
 print(".env exists?", ENV_PATH.exists())
 print("OPENAI_API_KEY loaded?", "yes ✅" if OPENAI_API_KEY else "no ❌")
 print("OPENAI_API_KEY masked:", _mask(OPENAI_API_KEY))
-print("OPENAI_API_KEY length:", len(OPENAI_API_KEY) if OPENAI_API_KEY else 0)
 print("MODEL:", MODEL)
 print("DEFAULT_TZ:", DEFAULT_TZ)
 print("–––––––– END STARTUP DEBUG ––––––––")
 
-# Firestore init (optional)
+# === Firestore ===
 import firebase_admin
 from firebase_admin import credentials, firestore
 
@@ -84,203 +81,146 @@ def save_chat_to_firestore(user_messages: List[Dict[str, Any]], assistant_messag
     except Exception as e:
         print("[warn] failed to write chat log:", e)
 
-# OpenAI client
+# === OpenAI client ===
 from openai import OpenAI
 if not OPENAI_API_KEY:
     raise RuntimeError("OPENAI_API_KEY is missing. Check apps/api-python/.env")
 oai = OpenAI(api_key=OPENAI_API_KEY)
 
-# Request/response models
+# === Request/response models ===
 from models import ChatRequest, ChatResponse
 
-# Tool schemas exposed to the model
+# === Tools setup ===
 TOOL_SCHEMA = [
     {
         "type": "function",
         "function": {
             "name": "get_booking_link",
-            "description": "Return the public booking link for a 30-minute call with Jordan. Use this any time the user wants to book, schedule, talk live, or check availability.",
-            "parameters": {
-                "type": "object",
-                "properties": {},
-                "required": []
-            }
-        }
+            "description": "Return the public booking link for a 30-minute call with Jordan.",
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
     },
     {
         "type": "function",
         "function": {
             "name": "lookup_customer",
-            "description": "Check Firestore for an existing customer record by email or phone, so we know if this is a returning lead.",
+            "description": "Check Firestore for an existing customer record by email or phone.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "email": { "type": "string", "description": "Email if they gave one." },
-                    "phone": { "type": "string", "description": "Phone number if they gave one. Can be messy formatting." }
+                    "email": {"type": "string"},
+                    "phone": {"type": "string"},
                 },
-                "required": []
-            }
-        }
+                "required": [],
+            },
+        },
     },
     {
         "type": "function",
         "function": {
             "name": "add_note",
-            "description": "Attach a short summary of this conversation to an existing Firestore customer record. Use after sharing the booking link so Jordan can follow up.",
+            "description": "Attach a summary of this conversation to an existing Firestore customer record.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "conversation_id": {
-                        "type": "string",
-                        "description": "Internal conversation/session ID from the chat client."
-                    },
-                    "customer_id": {
-                        "type": "string",
-                        "description": "Firestore customer doc ID, if known."
-                    },
-                    "summary": {
-                        "type": "string",
-                        "description": "Brief human-readable note of what they want."
-                    }
+                    "conversation_id": {"type": "string"},
+                    "customer_id": {"type": "string"},
+                    "summary": {"type": "string"},
                 },
-                "required": ["conversation_id", "customer_id", "summary"]
-            }
-        }
-    }
+                "required": ["conversation_id", "customer_id", "summary"],
+            },
+        },
+    },
 ]
 
-# Map tool names -> actual coroutine in tools.py
 TOOL_IMPL = {
     "get_booking_link": get_booking_link,
     "lookup_customer": lookup_customer,
     "add_note": add_note,
 }
 
-# Assistant behavior
+# === System prompt ===
 SYSTEM_PROMPT = (
     "You are Mogul Design Agency's helpful customer service assistant. "
-    "Be concise, friendly, and proactive.\n"
-    "\n"
+    "Be concise, friendly, and proactive.\n\n"
     "BOOKING FLOW:\n"
-    "1) If the user asks to talk, meet, call, schedule, book time, or check availability "
-    "with Jordan, assume they want to schedule a call.\n"
-    "2) Ask for their full name first. If they only give a first name, ask \"What's your last name too?\".\n"
-    "3) Then ask for their best email. Check that it looks like name@domain.tld. "
-    "If it's not valid, ask them to confirm it. Never invent an email.\n"
-    "4) After you have name + email, OR if the user says \"just send me the link\":\n"
-    "   - Call the `get_booking_link` tool.\n"
-    "   - Tell them: \"Here’s the direct booking link, you can pick any open 30-minute slot that works for you.\"\n"
-    "5) Do NOT promise you will personally add events to the calendar. You only give them the link right now.\n"
-    "\n"
-    "CRM / FOLLOW-UP:\n"
-    "• If you already know their Firestore customer_id, you MAY call `add_note` with a short summary "
-    "  of what they want so Jordan can follow up. If you don't know a customer_id, skip that.\n"
-    "\n"
-    "GENERAL QUESTIONS:\n"
-    "• Be warm, clear, and concrete. If they ask general questions about services, answer briefly.\n"
-    "• You may include one helpful link to the agency site if relevant. Never make up a link.\n"
-    "\n"
-    "RULES:\n"
-    "• Never invent personal data.\n"
-    "• Never ask for credit card numbers, SSNs, or other sensitive info.\n"
-    "• If the user asks for a human, say you can connect them and summarize what they need.\n"
+    "1) If the user asks to talk, meet, call, schedule, book time, or check availability, assume they want to schedule a call.\n"
+    "2) Ask for their full name first, then ask for email.\n"
+    "3) After name + email, call `get_booking_link` to give them the scheduling link.\n"
+    "4) Never invent data.\n"
 )
 
-# internal helpers for tool calling
+# === Tool helpers ===
 async def _run_one_tool(name: str, args: Dict[str, Any]) -> Dict[str, Any]:
     fn = TOOL_IMPL.get(name)
     if fn is None:
         return {"error": "unknown_tool"}
-
-    # lookup_customer is special (either email or phone is okay)
     if name == "lookup_customer":
         email, phone = args.get("email"), args.get("phone")
         if not email and not phone:
             return {"error": "provide_email_or_phone"}
         return await fn(email=email, phone=phone)
-
-    # others map directly
     return await fn(**args)
 
 def _assistant_tool_call_dict(msg_obj) -> dict:
     calls = []
     for tc in (msg_obj.tool_calls or []):
-        calls.append({
-            "id": tc.id,
-            "type": "function",
-            "function": {
-                "name": tc.function.name,
-                "arguments": tc.function.arguments or "{}",
-            },
-        })
+        calls.append(
+            {
+                "id": tc.id,
+                "type": "function",
+                "function": {
+                    "name": tc.function.name,
+                    "arguments": tc.function.arguments or "{}",
+                },
+            }
+        )
     return {"role": "assistant", "tool_calls": calls}
 
 async def _apply_tool_calls(base_msgs: List[dict], msg_obj) -> List[dict]:
     tool_msgs: List[dict] = []
     assistant_tool = _assistant_tool_call_dict(msg_obj)
-
     for tc in (msg_obj.tool_calls or []):
         args = json.loads(tc.function.arguments or "{}")
         try:
             result = await _run_one_tool(tc.function.name, args)
         except Exception as e:
             result = {"error": f"Tool error: {e}"}
-
-        tool_msgs.append({
-            "role": "tool",
-            "tool_call_id": tc.id,
-            "content": json.dumps(result),
-        })
-
+        tool_msgs.append(
+            {
+                "role": "tool",
+                "tool_call_id": tc.id,
+                "content": json.dumps(result),
+            }
+        )
     return base_msgs + [assistant_tool] + tool_msgs
 
 async def run_with_tools(messages: List[dict]) -> dict:
-    """
-    messages: chat history WITHOUT the system prompt.
-    returns: {"role":"assistant","content":"..."} final message for frontend.
-    """
-
-    if not OPENAI_API_KEY:
-        return {
-            "role": "assistant",
-            "content": "⚠️ Missing OPENAI_API_KEY. Add it to .env and restart the server."
-        }
-
     base_msgs = [{"role": "system", "content": SYSTEM_PROMPT}] + messages
-
-    # 1. first LLM call: allow tool calls
     from openai.types.chat import ChatCompletionMessage
     first_resp = oai.chat.completions.create(
         model=MODEL,
         messages=base_msgs,
         tools=TOOL_SCHEMA,
         tool_choice="auto",
-        stream=False
+        stream=False,
     )
-
     choice = first_resp.choices[0]
     msg: ChatCompletionMessage = choice.message
-
-    # If tools were requested
     if choice.finish_reason == "tool_calls" and msg.tool_calls:
-        # run tools
         msgs_with_tools = await _apply_tool_calls(base_msgs, msg)
-
-        # 2. second LLM call: give tool results back to model, NO new tools
         second_resp = oai.chat.completions.create(
-            model=MODEL,
-            messages=msgs_with_tools,
-            stream=False
+            model=MODEL, messages=msgs_with_tools, stream=False
         )
         return second_resp.choices[0].message.model_dump()
-
-    # No tool call, just answer
     return msg.model_dump()
 
-# FastAPI app + CORS
-app = FastAPI(title="AI Agent API (Python)")
+# === FastAPI app ===
+app = FastAPI(title="AI Agent API (Python + Voice)")
 
-origins = [o.strip() for o in os.environ.get("CORS_ORIGINS", "http://localhost:3000").split(",")]
+origins = [
+    o.strip() for o in os.environ.get("CORS_ORIGINS", "http://localhost:3000").split(",")
+]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -289,11 +229,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# static UI
+# === static UI ===
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 app.mount("/ui", StaticFiles(directory=static_dir, html=True), name="static")
 
-# / -> /ui
 @app.get("/")
 async def root():
     return RedirectResponse(url="/ui/")
@@ -320,23 +259,19 @@ def get_config():
         "brandColor": os.getenv("CALCOM_BRAND_COLOR", "#111827").strip(),
     }
 
-# main chat endpoint
-from models import ChatRequest, ChatResponse
-
+# === Chat endpoint ===
 @app.post("/v1/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest):
     try:
         incoming = [m.model_dump(exclude_none=True) for m in req.messages]
         message = await run_with_tools(incoming)
-        save_chat_to_firestore(incoming, message)  # no-op if db is None
+        save_chat_to_firestore(incoming, message)
         return {"message": message}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": f"server_error: {str(e)}"})
 
-# (We'll leave /v1/chat/stream for later if you still want streaming.)
 
-
-# Twilio SMS webhook placeholder (still fine to keep)
+# === Twilio SMS webhook (still works) ===
 @app.post("/twilio/sms")
 async def sms_webhook(request: Request):
     form = await request.form()
@@ -346,5 +281,76 @@ async def sms_webhook(request: Request):
 <Response>
   <Message>Thanks! The AI assistant received: {body}</Message>
 </Response>""",
-        media_type="application/xml"
+        media_type="application/xml",
     )
+
+# ====================================================
+# 🗣️ NEW: Speech-to-Text (STT) + Text-to-Speech (TTS)
+# ====================================================
+
+from google.cloud import speech_v1p1beta1 as speech
+from google.cloud import texttospeech
+
+@app.post("/v1/stt")
+async def speech_to_text(audio: UploadFile = File(...)):
+    """
+    Accepts short WebM/Opus audio from the browser and returns JSON {text:"..."}.
+    """
+    try:
+        content = await audio.read()
+        client = speech.SpeechClient()
+        audio_cfg = speech.RecognitionAudio(content=content)
+        config = speech.RecognitionConfig(
+            encoding=speech.RecognitionConfig.AudioEncoding.WEBM_OPUS,
+            language_code="en-US",
+            enable_automatic_punctuation=True,
+        )
+        resp = client.recognize(config=config, audio=audio_cfg)
+        if not resp.results:
+            return {"text": ""}
+        transcript = resp.results[0].alternatives[0].transcript
+        print("🎙️ Transcribed:", transcript)
+        return {"text": transcript}
+    except Exception as e:
+        print("❌ STT error:", e)
+        return JSONResponse({"text": "", "error": str(e)}, status_code=500)
+
+@app.post("/v1/tts")
+async def text_to_speech(payload: dict):
+    """
+    Converts assistant text into an MP3 audio stream.
+    """
+    try:
+        text = payload.get("text", "")
+        if not text:
+            raise HTTPException(status_code=400, detail="No text provided")
+        tts_client = texttospeech.TextToSpeechClient()
+        synthesis_input = texttospeech.SynthesisInput(text=text)
+        voice = texttospeech.VoiceSelectionParams(
+            language_code="en-US",
+            ssml_gender=texttospeech.SsmlVoiceGender.NEUTRAL,
+        )
+        audio_config = texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.MP3)
+        tts_resp = tts_client.synthesize_speech(
+            input=synthesis_input, voice=voice, audio_config=audio_config
+        )
+        audio_bytes = tts_resp.audio_content
+        print("🔊 TTS generated", len(audio_bytes), "bytes")
+        return StreamingResponse(io.BytesIO(audio_bytes), media_type="audio/mpeg")
+    except Exception as e:
+        print("❌ TTS error:", e)
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+# ====================================================
+# 🎧 LiveKit Token (stub for future)
+# ====================================================
+@app.get("/v1/livekit-token")
+async def get_livekit_token(identity: str = "browser-user"):
+    return {"token": "livekit-token-placeholder"}
+
+# ====================================================
+# 🚀 Startup banner
+# ====================================================
+@app.on_event("startup")
+async def startup_event():
+    print("🚀 Mogul AI Agent API running with OpenAI + Voice ready.")

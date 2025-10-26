@@ -17,46 +17,91 @@
         <p>Try: <em>“Book me Tuesday at 3pm”</em></p>
       </header>
 
-      <div id="messages" class="messages" aria-live="polite" aria-label="Chat transcript"></div>
+      <div
+        id="messages"
+        class="messages"
+        aria-live="polite"
+        aria-label="Chat transcript">
+      </div>
 
-      <!-- ChatGPT-like composer -->
+      <!-- Composer -->
       <form id="form" class="composer" autocomplete="off">
         <div class="bar">
-          <button type="button" id="attach" class="icon-btn" title="Attach (coming soon)" aria-label="Attach">
+          <!-- Attach button (placeholder / optional) -->
+          <button
+            type="button"
+            id="attach"
+            class="icon-btn"
+            title="Attach"
+            aria-label="Attach"
+          >
             <!-- plus icon -->
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                 aria-hidden="true">
               <path d="M12 5v14M5 12h14"/>
             </svg>
           </button>
 
-          <textarea id="input" rows="1" placeholder="Ask anything..." aria-label="Your message" autofocus></textarea>
+          <!-- User text input -->
+          <textarea
+            id="input"
+            rows="1"
+            placeholder="Ask anything..."
+            aria-label="Your message"
+          ></textarea>
 
+          <!-- Right side: mic + send -->
           <div class="right">
-            <button type="button" id="mic" class="icon-btn" title="Voice (coming soon)" aria-label="Voice">
-              <!-- mic icon -->
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                   stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M12 1a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-                <path d="M19 10a7 7 0 0 1-14 0"/>
-                <path d="M12 19v4"/>
-              </svg>
-            </button>
+            <!-- mic wrap for glow while recording -->
+            <div class="mic-wrap" id="micWrap">
+              <button
+                type="button"
+                id="mic"
+                class="icon-btn"
+                title="Hold to talk"
+                aria-label="Voice"
+              >
+                <!-- mic icon -->
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                     aria-hidden="true">
+                  <path d="M12 1a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                  <path d="M19 10a7 7 0 0 1-14 0"/>
+                  <path d="M12 19v4"/>
+                </svg>
+              </button>
+            </div>
 
-            <button type="submit" id="send" class="icon-btn primary" title="Send" aria-label="Send">
-              <!-- paper-plane icon -->
-              <svg id="sendIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                   stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="m22 2-7 20-4-9-9-4Z"/>
-                <path d="M22 2 11 13"/>
+            <!-- send button (only shows when there's text) -->
+            <button
+              type="submit"
+              id="send"
+              class="icon-btn primary"
+              title="Send"
+              aria-label="Send"
+            >
+              <!-- send / arrow icon -->
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                   aria-hidden="true">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
               </svg>
             </button>
           </div>
         </div>
-        <div class="hint">Press <kbd>Enter</kbd> to send • <kbd>Shift</kbd>+<kbd>Enter</kbd> for a new line</div>
+
+        <div class="hint">
+          Press <kbd>Enter</kbd> to send •
+          <kbd>Shift</kbd>+<kbd>Enter</kbd> for a new line
+        </div>
       </form>
-    </div>
-  </div>
+
+      <!-- hidden audio player for assistant voice replies -->
+      <audio id="voicePlayer" autoplay style="display:none;"></audio>
+
+    </div><!-- .chat -->
+  </div><!-- .wrap -->
 
   <!-- IMPORTANT: relative paths because page is served at /ui/ -->
   <script defer src="./chat.js"></script>

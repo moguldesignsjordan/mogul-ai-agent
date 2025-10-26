@@ -1,62 +1,412 @@
-/* base */
-*{box-sizing:border-box}
-:root{
-  --bg:#0b1220; --panel:#0e1630; --panel-2:#0f1733;
-  --muted:#a9b3cf; --text:#e8eefc; --accent:#3b82f6;
-  --border:rgba(255,255,255,.08); --border2:rgba(255,255,255,.06)
-}
-body{margin:0;font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text)}
-.wrap{min-height:100dvh;display:grid;place-items:center;padding:24px}
-.chat{width:min(1000px,100%);background:var(--panel);border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.35);overflow:hidden;border:1px solid var(--border)}
-header{padding:16px 20px;border-bottom:1px solid var(--border)}
-header .head{display:flex;align-items:center;justify-content:space-between;gap:12px}
-header h1{margin:0;font-size:18px}
-header p{margin:6px 0 0;color:var(--muted);font-size:13px}
-.status{font-size:12px;color:#c7d2fe;background:#111a3c;border:1px solid #253068;padding:4px 8px;border-radius:8px}
-
-/* messages */
-.messages{height:min(62vh,620px);overflow:auto;padding:16px;display:flex;flex-direction:column;gap:12px;background:linear-gradient(180deg,#0f1733 0,var(--bg) 100%)}
-.msg{max-width:85%;padding:12px 14px;border-radius:16px;white-space:pre-wrap;line-height:1.4;border:1px solid var(--border2)}
-.msg.user{margin-left:auto;background:#223055;color:var(--text)}
-.msg.assistant{margin-right:auto;background:#1a2444;color:#eaf2ff}
-
-/* composer — ChatGPT-like pill */
-.composer{padding:14px;border-top:1px solid var(--border);background:var(--panel-2)}
-.composer .bar{
-  display:flex;align-items:center;gap:10px;background:#0b1220;border:1px solid #2b3861;
-  border-radius:999px;padding:8px 10px
-}
-.icon-btn{
-  width:38px;height:38px;display:grid;place-items:center;border-radius:999px;
-  border:1px solid transparent;background:transparent;color:#cfd6f7;cursor:pointer;flex:0 0 auto
-}
-.icon-btn:hover{background:#142146;border-color:#253068}
-.icon-btn.primary{background:var(--accent);color:#fff;border-color:transparent}
-.icon-btn.primary:hover{filter:brightness(1.05)}
-.icon-btn:disabled{opacity:.55;cursor:not-allowed}
-.icon-btn svg{width:18px;height:18px}
-
-.composer .right{display:flex;align-items:center;gap:6px}
-.composer textarea{
-  flex:1;border:0;outline:0;background:transparent;color:var(--text);
-  padding:10px 6px 10px 2px;resize:none;max-height:160px;min-height:24px;font-size:15px
+/* ========== Base Theme Tokens ========== */
+:root {
+  --bg:#0b1220;
+  --panel:#0e1630;
+  --panel-2:#0f1733;
+  --muted:#a9b3cf;
+  --text:#e8eefc;
+  --accent:#3b82f6;
+  --border:rgba(255,255,255,.08);
+  --border2:rgba(255,255,255,.06);
 }
 
-/* hint */
-.hint{margin-top:8px;color:var(--muted);font-size:12px;opacity:.9}
-kbd{background:#1b2a52;border:1px solid #253068;border-radius:6px;padding:2px 6px}
+* {
+  box-sizing:border-box;
+}
 
-/* cards (for booking URLs etc.) */
-.card{margin:6px 0; padding:10px 12px; border-radius:12px; background:#0f1d3b; border:1px solid #203161}
-.btn-link{margin-left:6px; padding:6px 10px; border-radius:8px; background:#1f3a8a; color:#fff; text-decoration:none}
-.btn-link:hover{filter:brightness(1.05)}
+body {
+  margin:0;
+  font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Arial;
+  background:var(--bg);
+  color:var(--text);
+}
 
-/* spinner for send button */
-.spinner{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;animation:spin 1s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
+.wrap {
+  min-height:100dvh;
+  display:grid;
+  place-items:center;
+  padding:24px;
+}
 
-/* small screens */
+/* main chat container */
+.chat {
+  width:min(1000px,100%);
+  background:var(--panel);
+  border-radius:16px;
+  box-shadow:0 10px 30px rgba(0,0,0,.35);
+  overflow:hidden;
+  border:1px solid var(--border);
+  display:flex;
+  flex-direction:column;
+}
+
+/* ========== Header / Status Row ========== */
+header {
+  padding:16px 20px;
+  border-bottom:1px solid var(--border);
+  color:var(--text);
+  font-size:13px;
+}
+
+.head {
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:12px;
+}
+
+.title-col h1,
+header h1 {
+  margin:0;
+  font-size:18px;
+  font-weight:600;
+  color:#fff;
+}
+
+.title-col .hint-line,
+header p {
+  margin:4px 0 0;
+  font-size:13px;
+  color:var(--muted);
+}
+
+.status,
+.status-col {
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  font-size:12px;
+  color:#c7d2fe;
+  background:#111a3c;
+  border:1px solid #253068;
+  padding:4px 8px;
+  border-radius:8px;
+}
+
+.status-col {
+  background:transparent;
+  border:0;
+  padding:0;
+  border-radius:0;
+}
+
+.pill {
+  border-radius:8px;
+  background:#1a2444;
+  border:1px solid rgba(255,255,255,.08);
+  padding:3px 8px;
+  line-height:1.2;
+  color:#e8eefc;
+  font-size:12px;
+}
+.pill.ok {
+  background:#1f2f57;
+  color:#7CFFA5;
+  border-color:rgba(124,255,165,.3);
+}
+.pill.bad {
+  background:#3a1f2f;
+  color:#ff6b6b;
+  border-color:rgba(255,107,107,.3);
+}
+
+/* ========== Messages Pane ========== */
+.messages {
+  flex:1;
+  height:min(60vh,600px);
+  overflow:auto;
+  padding:16px;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  background:
+    radial-gradient(circle at 20% 20%,rgba(59,130,246,.07) 0%,rgba(0,0,0,0) 70%),
+    linear-gradient(180deg,#0f1733 0,var(--bg) 100%);
+}
+
+/* message bubbles */
+.msg {
+  max-width:80%;
+  padding:10px 12px;
+  border-radius:12px;
+  white-space:pre-wrap;
+  word-break:break-word;
+  line-height:1.35;
+  font-size:14px;
+  border:1px solid var(--border2);
+}
+
+.msg.user {
+  margin-left:auto;
+  background:#223055;
+  color:var(--text);
+}
+
+.msg.assistant {
+  margin-right:auto;
+  background:#1a2444;
+  color:#e8eefc;
+}
+.msg.assistant a {
+  color:#93c5fd;
+  text-decoration:underline;
+}
+
+.msg.thinking {
+  opacity:.6;
+  font-style:italic;
+}
+
+/* system / status bubble (used for "Listening...") */
+.msg.system {
+  margin-right:auto;
+  background:#10192f;
+  color:#7ca2ff;
+  font-size:13px;
+  font-style:italic;
+  line-height:1.35;
+  padding:10px 12px;
+  border-radius:12px;
+  border:1px solid rgba(124,162,255,.3);
+  opacity:.9;
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+
+/* animated dots after Listening */
+.listening-dots::after {
+  content:"";
+  display:inline-block;
+  width:2ch;
+  text-align:left;
+  color:#7ca2ff;
+  animation:dots-step 1s steps(4,end) infinite;
+}
+@keyframes dots-step {
+  0%   { content:"";   }
+  25%  { content:".";  }
+  50%  { content:".."; }
+  75%  { content:"...";}
+  100% { content:"";   }
+}
+
+/* ========== Composer / Input Row ========== */
+.composer {
+  border-top:1px solid var(--border);
+  background:var(--panel-2);
+  padding:12px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  font-size:13px;
+}
+
+.bar {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  background:#0b1220;
+  border:1px solid #2b3861;
+  border-radius:12px;
+  padding:8px 10px;
+}
+
+/* left attach button, mic, send all inherit this */
+.icon-btn {
+  width:38px;
+  height:38px;
+  display:grid;
+  place-items:center;
+  border-radius:10px;
+  border:1px solid transparent;
+  background:#1e253f;
+  color:#cfd6f7;
+  cursor:pointer;
+  flex:0 0 auto;
+  box-shadow:0 8px 20px rgba(0,0,0,.6);
+  transition:all .15s ease;
+}
+.icon-btn:hover {
+  background:#142146;
+  border-color:#253068;
+}
+.icon-btn.primary {
+  background:var(--accent);
+  color:#fff;
+  border-color:transparent;
+}
+.icon-btn.primary:hover {
+  filter:brightness(1.05);
+}
+.icon-btn:disabled {
+  opacity:.55;
+  cursor:not-allowed;
+}
+.icon-btn svg {
+  width:18px;
+  height:18px;
+  color:currentColor;
+}
+
+/* textarea */
+.composer textarea {
+  flex:1;
+  border:0;
+  outline:0;
+  background:transparent;
+  color:var(--text);
+  padding:10px 6px 10px 2px;
+  resize:none;
+  max-height:160px;
+  min-height:24px;
+  font-size:15px;
+  line-height:1.4;
+}
+.composer textarea::placeholder {
+  color:#6b7280;
+}
+
+/* right side of bar: mic + send */
+.right {
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+/* mic wrapper: lets us glow the container, not just the SVG */
+.mic-wrap {
+  position:relative;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+/* send button is hidden when no text.
+   micWrap is hidden when there IS text.
+   JS toggles .typing-mode on .composer */
+.composer .right #send {
+  display:none;
+}
+.composer.typing-mode .right #send {
+  display:inline-flex;
+}
+.composer.typing-mode .right #micWrap {
+  display:none;
+}
+
+/* live mic visuals (recording press+hold state) */
+#micWrap.recording {
+  outline:2px solid #7ca2ff;
+  outline-offset:2px;
+  border-radius:10px;
+  box-shadow:
+    0 0 16px rgba(124,162,255,.6),
+    0 12px 32px rgba(0,0,0,.8);
+}
+#mic.recording svg {
+  color:#ff4d4d;
+  filter:drop-shadow(0 0 6px rgba(255,68,68,.8));
+}
+
+/* hint row under composer */
+.hint,
+.composer-hint {
+  color:var(--muted);
+  font-size:12px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  line-height:1.4;
+  opacity:.9;
+}
+kbd {
+  background:#1a2444;
+  color:#e8eefc;
+  border-radius:4px;
+  border:1px solid rgba(255,255,255,.12);
+  font-size:11px;
+  padding:2px 4px;
+  line-height:1.2;
+}
+
+/* small spinner you used for send states (kept just in case) */
+.spinner {
+  width:16px;
+  height:16px;
+  border-radius:50%;
+  border:2px solid rgba(255,255,255,.35);
+  border-top-color:#fff;
+  animation:spin 1s linear infinite;
+}
+@keyframes spin {
+  to { transform:rotate(360deg); }
+}
+
+/* ========== Calendar Modal ========== */
+.cal-modal {
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.6);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:16px;
+  z-index:40;
+}
+.cal-modal.open {
+  display:flex;
+}
+.cal-dialog {
+  background:#0f1733;
+  color:#e8eefc;
+  width:min(500px,100%);
+  max-height:90vh;
+  overflow:auto;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.08);
+  box-shadow:0 30px 70px rgba(0,0,0,.7);
+  padding:16px;
+  position:relative;
+  font-size:14px;
+}
+.cal-close {
+  position:absolute;
+  top:8px;
+  right:8px;
+  background:#1e253f;
+  border:0;
+  color:#e8eefc;
+  border-radius:8px;
+  cursor:pointer;
+  line-height:1;
+  padding:6px 8px;
+  font-size:12px;
+}
+.cal-inline {
+  min-height:400px;
+}
+.cal-fallback-wrap {
+  font-size:13px;
+  margin-top:12px;
+}
+.cal-fallback-wrap a {
+  color:#93c5fd;
+  text-decoration:underline;
+}
+
+/* audio element should stay hidden visually but present in DOM */
+#voicePlayer {
+  display:none;
+}
+
+/* ========== Responsive tweaks ========== */
 @media (max-width:640px){
-  .messages{height:55vh}
-  .msg{max-width:92%}
+  .messages{
+    height:55vh;
+  }
+  .msg{
+    max-width:92%;
+  }
 }
