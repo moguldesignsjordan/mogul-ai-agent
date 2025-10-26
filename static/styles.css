@@ -1,0 +1,62 @@
+/* base */
+*{box-sizing:border-box}
+:root{
+  --bg:#0b1220; --panel:#0e1630; --panel-2:#0f1733;
+  --muted:#a9b3cf; --text:#e8eefc; --accent:#3b82f6;
+  --border:rgba(255,255,255,.08); --border2:rgba(255,255,255,.06)
+}
+body{margin:0;font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text)}
+.wrap{min-height:100dvh;display:grid;place-items:center;padding:24px}
+.chat{width:min(1000px,100%);background:var(--panel);border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.35);overflow:hidden;border:1px solid var(--border)}
+header{padding:16px 20px;border-bottom:1px solid var(--border)}
+header .head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+header h1{margin:0;font-size:18px}
+header p{margin:6px 0 0;color:var(--muted);font-size:13px}
+.status{font-size:12px;color:#c7d2fe;background:#111a3c;border:1px solid #253068;padding:4px 8px;border-radius:8px}
+
+/* messages */
+.messages{height:min(62vh,620px);overflow:auto;padding:16px;display:flex;flex-direction:column;gap:12px;background:linear-gradient(180deg,#0f1733 0,var(--bg) 100%)}
+.msg{max-width:85%;padding:12px 14px;border-radius:16px;white-space:pre-wrap;line-height:1.4;border:1px solid var(--border2)}
+.msg.user{margin-left:auto;background:#223055;color:var(--text)}
+.msg.assistant{margin-right:auto;background:#1a2444;color:#eaf2ff}
+
+/* composer — ChatGPT-like pill */
+.composer{padding:14px;border-top:1px solid var(--border);background:var(--panel-2)}
+.composer .bar{
+  display:flex;align-items:center;gap:10px;background:#0b1220;border:1px solid #2b3861;
+  border-radius:999px;padding:8px 10px
+}
+.icon-btn{
+  width:38px;height:38px;display:grid;place-items:center;border-radius:999px;
+  border:1px solid transparent;background:transparent;color:#cfd6f7;cursor:pointer;flex:0 0 auto
+}
+.icon-btn:hover{background:#142146;border-color:#253068}
+.icon-btn.primary{background:var(--accent);color:#fff;border-color:transparent}
+.icon-btn.primary:hover{filter:brightness(1.05)}
+.icon-btn:disabled{opacity:.55;cursor:not-allowed}
+.icon-btn svg{width:18px;height:18px}
+
+.composer .right{display:flex;align-items:center;gap:6px}
+.composer textarea{
+  flex:1;border:0;outline:0;background:transparent;color:var(--text);
+  padding:10px 6px 10px 2px;resize:none;max-height:160px;min-height:24px;font-size:15px
+}
+
+/* hint */
+.hint{margin-top:8px;color:var(--muted);font-size:12px;opacity:.9}
+kbd{background:#1b2a52;border:1px solid #253068;border-radius:6px;padding:2px 6px}
+
+/* cards (for booking URLs etc.) */
+.card{margin:6px 0; padding:10px 12px; border-radius:12px; background:#0f1d3b; border:1px solid #203161}
+.btn-link{margin-left:6px; padding:6px 10px; border-radius:8px; background:#1f3a8a; color:#fff; text-decoration:none}
+.btn-link:hover{filter:brightness(1.05)}
+
+/* spinner for send button */
+.spinner{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* small screens */
+@media (max-width:640px){
+  .messages{height:55vh}
+  .msg{max-width:92%}
+}

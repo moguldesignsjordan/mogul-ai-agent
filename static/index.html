@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>AI Agent — Quick Test</title>
+  <link rel="stylesheet" href="./styles.css"/>
+</head>
+<body>
+  <div class="wrap">
+    <div class="chat">
+      <header>
+        <div class="head">
+          <h1>AI Support</h1>
+          <div id="status" class="status">loading…</div>
+        </div>
+        <p>Try: <em>“Book me Tuesday at 3pm”</em></p>
+      </header>
+
+      <div id="messages" class="messages" aria-live="polite" aria-label="Chat transcript"></div>
+
+      <!-- ChatGPT-like composer -->
+      <form id="form" class="composer" autocomplete="off">
+        <div class="bar">
+          <button type="button" id="attach" class="icon-btn" title="Attach (coming soon)" aria-label="Attach">
+            <!-- plus icon -->
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 5v14M5 12h14"/>
+            </svg>
+          </button>
+
+          <textarea id="input" rows="1" placeholder="Ask anything..." aria-label="Your message" autofocus></textarea>
+
+          <div class="right">
+            <button type="button" id="mic" class="icon-btn" title="Voice (coming soon)" aria-label="Voice">
+              <!-- mic icon -->
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 1a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                <path d="M19 10a7 7 0 0 1-14 0"/>
+                <path d="M12 19v4"/>
+              </svg>
+            </button>
+
+            <button type="submit" id="send" class="icon-btn primary" title="Send" aria-label="Send">
+              <!-- paper-plane icon -->
+              <svg id="sendIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="m22 2-7 20-4-9-9-4Z"/>
+                <path d="M22 2 11 13"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="hint">Press <kbd>Enter</kbd> to send • <kbd>Shift</kbd>+<kbd>Enter</kbd> for a new line</div>
+      </form>
+    </div>
+  </div>
+
+  <!-- IMPORTANT: relative paths because page is served at /ui/ -->
+  <script defer src="./chat.js"></script>
+</body>
+</html>
