@@ -80,7 +80,6 @@ function linkify(str) {
 
 // add a message bubble
 function append(role, text, thinking = false) {
-  // first real chat bubble triggers dock mode
   if ((role === 'user' || role === 'assistant') && !chatStarted) {
     activateDockMode();
   }
@@ -88,11 +87,8 @@ function append(role, text, thinking = false) {
   const div = document.createElement('div');
   div.className = 'msg ' + role + (thinking ? ' thinking' : '');
 
-  if (role === 'assistant') {
-    div.innerHTML = linkify(text);
-  } else {
-    div.textContent = text;
-  }
+  if (role === 'assistant') div.innerHTML = linkify(text);
+  else div.textContent = text;
 
   $msgs.appendChild(div);
   $msgs.scrollTop = $msgs.scrollHeight;
@@ -114,7 +110,6 @@ function showListeningBubble() {
 // finalize listening -> user text or error
 function finalizeListeningBubble(textOrError, isError=false) {
   if (!listeningBubbleEl) return;
-
   if (isError) {
     listeningBubbleEl.className = 'msg assistant';
     listeningBubbleEl.textContent = textOrError;
@@ -122,7 +117,6 @@ function finalizeListeningBubble(textOrError, isError=false) {
     listeningBubbleEl.className = 'msg user';
     listeningBubbleEl.textContent = "(voice) " + textOrError;
   }
-
   listeningBubbleEl = null;
 }
 
@@ -130,7 +124,6 @@ function finalizeListeningBubble(textOrError, isError=false) {
 function captureIdentity(text) {
   const emailMatch = text.match(/([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})/i);
   if (emailMatch) lastEmail = emailMatch[1];
-
   const nameMatch = text.match(/(?:i am|i'm|my name is|name is)\s+([a-z][a-z\s.'-]{1,60})/i);
   if (nameMatch) lastName = nameMatch[1].trim();
 }
@@ -138,28 +131,21 @@ function captureIdentity(text) {
 /* --------------------------
    Calendar stuff (stubs)
 --------------------------- */
-async function loadCalConfig() { /* hook up your /v1/cal-config if you have it */ }
+async function loadCalConfig() {}
 function openCalModal() { if ($calModal) $calModal.classList.add('open'); }
 function closeCalModal() { if ($calModal) $calModal.classList.remove('open'); }
 
-if ($calClose) {
-  $calClose.addEventListener('click', closeCalModal);
-}
+if ($calClose) $calClose.addEventListener('click', closeCalModal);
 if ($calModal) {
-  $calModal.addEventListener('click', (e)=> {
-    if (e.target === $calModal) closeCalModal();
-  });
+  $calModal.addEventListener('click', (e)=> { if (e.target === $calModal) closeCalModal(); });
 }
-
-async function renderCalInline() { /* you can embed Cal.com iframe here */ }
+async function renderCalInline() {}
 async function openCalendar() { openCalModal(); await renderCalInline(); }
 
 function maybeTriggerCalendar(assistantText) {
   const t = (assistantText || "").toLowerCase();
   const trigger = /(when would you like to book|what time works|choose a time|pick a time|ready to schedule|select a time|book a time)/i;
-  if (trigger.test(t)) {
-    openCalendar();
-  }
+  if (trigger.test(t)) openCalendar();
 }
 
 /* --------------------------
@@ -167,7 +153,6 @@ function maybeTriggerCalendar(assistantText) {
 --------------------------- */
 async function sendChatOnce() {
   const bubble = append('assistant', '…', true);
-
   try {
     const res = await fetch('/v1/chat', {
       method:'POST',
@@ -178,8 +163,7 @@ async function sendChatOnce() {
     if (!res.ok) {
       const errText = await res.text().catch(()=>res.statusText);
       bubble.classList.remove('thinking');
-      bubble.innerHTML =
-        `⚠️ ${res.status} ${res.statusText}: ${linkify(errText)}`;
+      bubble.innerHTML = `⚠️ ${res.status} ${res.statusText}: ${linkify(errText)}`;
       return;
     }
 
@@ -189,15 +173,10 @@ async function sendChatOnce() {
 
     bubble.classList.remove('thinking');
     bubble.innerHTML = linkify(text);
-
     history.push({ role:'assistant', content: text });
 
     maybeTriggerCalendar(text);
-
-    // speak only if last message was voice
-    if (lastCaptureWasVoice) {
-      speakText(text);
-    }
+    if (lastCaptureWasVoice) speakText(text);
 
   } catch (err) {
     bubble.classList.remove('thinking');
@@ -207,7 +186,7 @@ async function sendChatOnce() {
 }
 
 /* --------------------------
-   Handle text submit (current active composer)
+   Handle text submit
 --------------------------- */
 async function handleSubmit(e){
   e.preventDefault();
@@ -215,18 +194,14 @@ async function handleSubmit(e){
   if (!text) return;
 
   captureIdentity(text);
-
   append('user', text);
   history.push({ role: 'user', content: text });
 
   $input.value = '';
   $input.focus();
-
   updateComposerMode();
 
-  // typed msg -> do not auto-speak assistant
   lastCaptureWasVoice = false;
-
   await sendChatOnce();
 }
 
@@ -236,41 +211,25 @@ async function handleSubmit(e){
 async function handleVoiceMessage(audioBlob){
   const fd = new FormData();
   fd.append('audio', audioBlob, 'speech.webm');
-
-  let heardText = '';
-  let sttError = null;
-
+  let heardText = '', sttError = null;
   try {
-    const sttRes = await fetch('/v1/stt', {
-      method:'POST',
-      body: fd
-    });
+    const sttRes = await fetch('/v1/stt', { method:'POST', body: fd });
     const sttData = await sttRes.json();
     heardText = sttData.text || '';
     sttError = sttData.error || null;
-  } catch (err){
-    sttError = err.message || String(err);
-  }
+  } catch (err){ sttError = err.message || String(err); }
 
   if (!heardText) {
-    finalizeListeningBubble(
-      sttError
-        ? "I couldn't transcribe that (STT error)."
-        : "I couldn't hear anything.",
-      true
-    );
+    finalizeListeningBubble(sttError ? "I couldn't transcribe that (STT error)." : "I couldn't hear anything.", true);
     console.warn("STT error detail:", sttError);
     return;
   }
 
   captureIdentity(heardText);
-
   finalizeListeningBubble(heardText, false);
   history.push({ role:'user', content: heardText });
 
-  // voice message -> we want assistant to talk back
   lastCaptureWasVoice = true;
-
   await sendChatOnce();
 }
 
@@ -285,14 +244,11 @@ async function speakText(text){
       headers:{'content-type':'application/json'},
       body: JSON.stringify({ text })
     });
-
     const replyBlob = await ttsRes.blob();
     const url = URL.createObjectURL(replyBlob);
     $player.src = url;
     $player.play().catch(()=>{});
-  }catch(err){
-    console.error("TTS failed", err);
-  }
+  }catch(err){ console.error("TTS failed", err); }
 }
 
 /* --------------------------
@@ -305,19 +261,14 @@ async function startRecording(){
   if ($mic)     $mic.classList.add('recording');
   if ($micWrap) $micWrap.classList.add('recording');
 
-  // show "Listening..." bubble immediately
   showListeningBubble();
 
   micChunks = [];
-
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
   mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
 
   mediaRecorder.ondataavailable = (e)=>{
-    if(e.data.size > 0){
-      micChunks.push(e.data);
-    }
+    if(e.data.size > 0){ micChunks.push(e.data); }
   };
 
   mediaRecorder.start();
@@ -346,7 +297,6 @@ async function stopRecording(){
 --------------------------- */
 function updateComposerMode(){
   const hasText = $input.value.trim().length > 0;
-  // add/remove typing-mode class on the ACTIVE form
   if (hasText) {
     $form.classList.add('typing-mode');
     if (isRecording) stopRecording();
@@ -356,15 +306,11 @@ function updateComposerMode(){
 }
 
 /* --------------------------
-   Wire up listeners for the ACTIVE composer
-   (we call this once at load for hero,
-    and again when we switch to dock mode)
+   Wire up listeners for composer
 --------------------------- */
 function wireComposerEvents() {
-  // remove previous listeners first to avoid stacking duplicates
   $form.onsubmit = null;
   $input.oninput = null;
-
   if ($mic) {
     $mic.onmousedown = null;
     $mic.ontouchstart = null;
@@ -372,28 +318,38 @@ function wireComposerEvents() {
   window.onmouseup = null;
   window.ontouchend = null;
 
-  // submit
   $form.addEventListener('submit', handleSubmit);
-
-  // typing-mode swap mic/send
   $input.addEventListener('input', updateComposerMode);
   updateComposerMode();
 
-  // mic press+hold
+  // improved hold detection
   if ($mic) {
-    $mic.addEventListener('mousedown', startRecording);
-    $mic.addEventListener('touchstart', (e)=>{
+    let holdTimer;
+
+    const handleHoldStart = (e) => {
       e.preventDefault();
-      startRecording();
-    });
+      holdTimer = setTimeout(() => {
+        if ($mic)     $mic.classList.add('recording');
+        if ($micWrap) $micWrap.classList.add('recording');
+        startRecording();
+      }, 200); // small delay before “Listening” starts
+    };
+
+    const handleHoldEnd = () => {
+      clearTimeout(holdTimer);
+      stopRecording();
+      if ($mic)     $mic.classList.remove('recording');
+      if ($micWrap) $micWrap.classList.remove('recording');
+    };
+
+    $mic.addEventListener('mousedown', handleHoldStart);
+    $mic.addEventListener('touchstart', handleHoldStart);
+    window.addEventListener('mouseup', handleHoldEnd);
+    window.addEventListener('touchend', handleHoldEnd);
   }
-  window.addEventListener('mouseup', stopRecording);
-  window.addEventListener('touchend', stopRecording);
 }
 
 /* --------------------------
    Init
 --------------------------- */
-
-// set up listeners for initial hero composer
 wireComposerEvents();
