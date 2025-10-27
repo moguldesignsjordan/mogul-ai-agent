@@ -33,3 +33,4 @@ venv/
 __pycache__/
 *.pyc
 .DS_Store
+call_audio/
