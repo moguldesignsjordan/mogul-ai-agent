@@ -29,6 +29,9 @@ MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 DEFAULT_TZ = os.getenv("DEFAULT_TZ", "America/New_York")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
+# 🔊 NEW: ElevenLabs API key
+ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
+
 def _mask(key: str | None) -> str:
     if not key:
         return "None"
@@ -44,6 +47,8 @@ print("OPENAI_API_KEY loaded?", "yes ✅" if OPENAI_API_KEY else "no ❌")
 print("OPENAI_API_KEY masked:", _mask(OPENAI_API_KEY))
 print("MODEL:", MODEL)
 print("DEFAULT_TZ:", DEFAULT_TZ)
+print("ELEVENLABS_API_KEY loaded?", "yes ✅" if ELEVENLABS_API_KEY else "no ❌")
+print("ELEVENLABS_API_KEY masked:", _mask(ELEVENLABS_API_KEY))
 print("–––––––– END STARTUP DEBUG ––––––––")
 
 # === Firestore ===
@@ -285,12 +290,8 @@ async def sms_webhook(request: Request):
     )
 
 # ====================================================
-# 🗣️ NEW: Speech-to-Text (STT) + Text-to-Speech (TTS)
+# 🗣️ Speech-to-Text (STT)
 # ====================================================
-
-from google.cloud import speech_v1p1beta1 as speech
-from google.cloud import texttospeech
-
 @app.post("/v1/stt")
 async def speech_to_text(audio: UploadFile = File(...)):
     """
@@ -315,15 +316,60 @@ async def speech_to_text(audio: UploadFile = File(...)):
         print("❌ STT error:", e)
         return JSONResponse({"text": "", "error": str(e)}, status_code=500)
 
+# ====================================================
+# 🔊 Text-to-Speech (TTS) with ElevenLabs primary + Google fallback
+# ====================================================
+
+# NEW: ElevenLabs client setup
+from elevenlabs.client import ElevenLabs
+_eleven_client: ElevenLabs | None = None
+if ELEVENLABS_API_KEY:
+    try:
+        _eleven_client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
+        print("✅ ElevenLabs client ready")
+    except Exception as e:
+        print("⚠️ ElevenLabs init failed:", e)
+else:
+    print("ℹ️ ELEVENLABS_API_KEY not set, will use Google TTS only")
+
+
 @app.post("/v1/tts")
 async def text_to_speech(payload: dict):
     """
     Converts assistant text into an MP3 audio stream.
+
+    Flow:
+    1. Try ElevenLabs for realistic voice (if ELEVENLABS_API_KEY exists)
+    2. If that fails (or no key), fall back to Google Cloud TTS.
     """
+    text = payload.get("text", "")
+    if not text:
+        raise HTTPException(status_code=400, detail="No text provided")
+
+    # --- 1) ElevenLabs path ---
+    if _eleven_client:
+        try:
+            # Pick a voice from ElevenLabs dashboard. Replace this ID with your custom voice later.
+            VOICE_ID = "yM93hbw8Qtvdma2wCnJG"
+
+            audio_stream = _eleven_client.text_to_speech.convert(
+                voice_id=VOICE_ID,
+                model_id="eleven_multilingual_v2",
+                text=text,
+                output_format="mp3_44100_128",
+            )
+
+            # it's a streaming generator -> join chunks into bytes
+            audio_bytes = b"".join(chunk for chunk in audio_stream)
+
+            print("🔊 ElevenLabs TTS generated", len(audio_bytes), "bytes")
+            return StreamingResponse(io.BytesIO(audio_bytes), media_type="audio/mpeg")
+
+        except Exception as e:
+            print("⚠️ ElevenLabs TTS failed, falling back to Google TTS:", e)
+
+    # --- 2) Google fallback (your original code) ---
     try:
-        text = payload.get("text", "")
-        if not text:
-            raise HTTPException(status_code=400, detail="No text provided")
         tts_client = texttospeech.TextToSpeechClient()
         synthesis_input = texttospeech.SynthesisInput(text=text)
         voice = texttospeech.VoiceSelectionParams(
@@ -335,10 +381,10 @@ async def text_to_speech(payload: dict):
             input=synthesis_input, voice=voice, audio_config=audio_config
         )
         audio_bytes = tts_resp.audio_content
-        print("🔊 TTS generated", len(audio_bytes), "bytes")
+        print("🔊 Google TTS generated", len(audio_bytes), "bytes (fallback)")
         return StreamingResponse(io.BytesIO(audio_bytes), media_type="audio/mpeg")
     except Exception as e:
-        print("❌ TTS error:", e)
+        print("❌ TOTAL TTS error:", e)
         return JSONResponse({"error": str(e)}, status_code=500)
 
 # ====================================================

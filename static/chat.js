@@ -34,6 +34,7 @@ let history = [];
 let mediaRecorder = null;
 let micChunks = [];
 let isRecording = false;
+let didRecordAnything = false; // <- NEW: did we actually start + capture audio
 
 // whether last user message was voice
 let lastCaptureWasVoice = false;
@@ -220,7 +221,13 @@ async function handleVoiceMessage(audioBlob){
   } catch (err){ sttError = err.message || String(err); }
 
   if (!heardText) {
-    finalizeListeningBubble(sttError ? "I couldn't transcribe that (STT error)." : "I couldn't hear anything.", true);
+    // instead of "I couldn't hear anything."
+    finalizeListeningBubble(
+      sttError
+        ? "Hold the microphone to record."
+        : "Hold the microphone to record.",
+      true
+    );
     console.warn("STT error detail:", sttError);
     return;
   }
@@ -254,13 +261,17 @@ async function speakText(text){
 /* --------------------------
    Mic press+hold -> record
 --------------------------- */
-async function startRecording(){
+async function actuallyStartRecording(){
+  // guard
   if(isRecording) return;
+
   isRecording = true;
+  didRecordAnything = true; // <- mark that we genuinely started
 
   if ($mic)     $mic.classList.add('recording');
   if ($micWrap) $micWrap.classList.add('recording');
 
+  // now that we are REALLY recording, show bubble
   showListeningBubble();
 
   micChunks = [];
@@ -276,6 +287,7 @@ async function startRecording(){
 
 async function stopRecording(){
   if(!isRecording) return;
+
   isRecording = false;
 
   if ($mic)     $mic.classList.remove('recording');
@@ -285,6 +297,8 @@ async function stopRecording(){
     mediaRecorder.onstop = async ()=>{
       const blob = new Blob(micChunks, { type: 'audio/webm;codecs=opus' });
       micChunks = [];
+
+      // send to STT
       await handleVoiceMessage(blob);
       resolve();
     };
@@ -322,24 +336,41 @@ function wireComposerEvents() {
   $input.addEventListener('input', updateComposerMode);
   updateComposerMode();
 
-  // improved hold detection
   if ($mic) {
     let holdTimer;
 
     const handleHoldStart = (e) => {
       e.preventDefault();
+      didRecordAnything = false; // reset every press
       holdTimer = setTimeout(() => {
-        if ($mic)     $mic.classList.add('recording');
-        if ($micWrap) $micWrap.classList.add('recording');
-        startRecording();
-      }, 200); // small delay before “Listening” starts
+        // after 200ms press, we consider it a HOLD -> start actual recording
+        actuallyStartRecording();
+      }, 200);
+    };
+
+    const cleanupUI = () => {
+      if ($mic)     $mic.classList.remove('recording');
+      if ($micWrap) $micWrap.classList.remove('recording');
     };
 
     const handleHoldEnd = () => {
       clearTimeout(holdTimer);
-      stopRecording();
-      if ($mic)     $mic.classList.remove('recording');
-      if ($micWrap) $micWrap.classList.remove('recording');
+
+      // CASE A: user released BEFORE we started recording
+      // (quick tap, didRecordAnything === false)
+      if (!isRecording && !didRecordAnything) {
+        // no Listening bubble was created, so just show helper
+        append('assistant', 'Hold the microphone to record.');
+        return;
+      }
+
+      // CASE B: we WERE recording
+      if (isRecording) {
+        stopRecording();
+      } else {
+        // edge safety
+        cleanupUI();
+      }
     };
 
     $mic.addEventListener('mousedown', handleHoldStart);
