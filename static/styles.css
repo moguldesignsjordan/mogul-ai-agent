@@ -42,7 +42,7 @@ body {
   width:100%;
   max-width:900px;
   margin:0 auto;
-  padding:24px 16px 120px; /* bottom padding so bubbles don't get hidden behind sticky bar */
+  padding:24px 16px 120px;
   position:relative;
   display:flex;
   flex-direction:column;
@@ -58,7 +58,7 @@ body {
   align-items:center;
   justify-content:center;
 
-  min-height:50vh; /* simpler: center-ish */
+  min-height:50vh;
   text-align:center;
   transition:
     opacity .2s ease,
@@ -96,15 +96,51 @@ body.has-started .hero-composer {
 }
 
 /* =========================================================
+   NEW: CONTINUE BANNER
+   ========================================================= */
+.continue-banner {
+  background:linear-gradient(135deg, rgba(255,185,6,.1), rgba(255,185,6,.05));
+  border:1px solid rgba(255,185,6,.3);
+  border-radius:var(--radius-md);
+  padding:12px 16px;
+  margin-bottom:24px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  font-size:14px;
+  animation:slideInDown 0.3s ease;
+}
+
+.continue-banner button {
+  background:var(--accent);
+  color:var(--accent-text);
+  border:none;
+  border-radius:6px;
+  padding:6px 12px;
+  font-size:13px;
+  font-weight:500;
+  cursor:pointer;
+  transition:.15s ease;
+}
+
+.continue-banner button:hover {
+  filter:brightness(1.1);
+}
+
+@keyframes slideInDown {
+  from {
+    opacity:0;
+    transform:translateY(-20px);
+  }
+  to {
+    opacity:1;
+    transform:translateY(0);
+  }
+}
+
+/* =========================================================
    DOCKED / STICKY COMPOSER
    ========================================================= */
-
-/*
-Now it's STICKY instead of FIXED.
-This means: it sits at the bottom of the viewport, but it is still
-part of the normal flow of the page. As you scroll up, it stays
-in view. As you scroll down, you see older messages above it.
-*/
 
 .dock-composer {
   position:sticky;
@@ -157,6 +193,7 @@ body.hero-mode .dock-composer {
   padding:14px 16px;
   box-shadow:var(--shadow-bar);
   color:var(--text-primary);
+  position:relative;
 }
 
 .icon-btn {
@@ -201,9 +238,28 @@ body.hero-mode .dock-composer {
   background:transparent;
   border-color:transparent;
   color:var(--text-primary);
+  position:relative;
 }
 .mic-btn:hover {
   color:var(--accent);
+}
+
+/* NEW: Waveform visualization */
+.waveform {
+  position:absolute;
+  bottom:-4px;
+  left:50%;
+  transform:translateX(-50%) scaleX(1);
+  width:30px;
+  height:3px;
+  background:var(--record-red);
+  border-radius:2px;
+  opacity:0;
+  transition:transform .1s ease, opacity .2s ease;
+}
+
+.mic-wrap.recording .waveform {
+  opacity:1;
 }
 
 /* mic recording glow */
@@ -256,12 +312,6 @@ body.hero-mode .dock-composer {
    MESSAGES
    ========================================================= */
 
-/*
-Now messages are just in the normal flow of the page.
-No special flex scroll. No overflow tricks.
-The page scrolls normally.
-*/
-
 .messages {
   display:flex;
   flex-direction:column;
@@ -285,6 +335,18 @@ The page scrolls normally.
   word-break:break-word;
   border:1px solid transparent;
   color:var(--text-primary);
+  animation:fadeInUp 0.3s ease;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity:0;
+    transform:translateY(10px);
+  }
+  to {
+    opacity:1;
+    transform:translateY(0);
+  }
 }
 
 .msg.user {
@@ -307,6 +369,48 @@ The page scrolls normally.
 .msg.thinking {
   opacity:.6;
   font-style:italic;
+}
+
+/* NEW: Typing indicator animation */
+.msg.typing-indicator {
+  max-width:60px;
+  padding:16px 20px;
+  display:flex;
+  gap:6px;
+  align-items:center;
+  justify-content:center;
+}
+
+.typing-indicator span {
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:var(--accent);
+  opacity:.4;
+  animation:typing-bounce 1.4s infinite ease-in-out;
+}
+
+.typing-indicator span:nth-child(1) {
+  animation-delay:0s;
+}
+
+.typing-indicator span:nth-child(2) {
+  animation-delay:.2s;
+}
+
+.typing-indicator span:nth-child(3) {
+  animation-delay:.4s;
+}
+
+@keyframes typing-bounce {
+  0%, 60%, 100% {
+    transform:translateY(0);
+    opacity:.4;
+  }
+  30% {
+    transform:translateY(-10px);
+    opacity:1;
+  }
 }
 
 /* listening bubble */
@@ -339,6 +443,208 @@ The page scrolls normally.
   50%  { content:".."; }
   75%  { content:"..."; }
   100% { content:""; }
+}
+
+/* =========================================================
+   NEW: SCROLL TO BOTTOM BUTTON
+   ========================================================= */
+.scroll-to-bottom {
+  position:fixed;
+  bottom:120px;
+  right:24px;
+  width:48px;
+  height:48px;
+  background:var(--surface);
+  border:1px solid var(--surface-border);
+  border-radius:50%;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  box-shadow:0 8px 24px rgba(0,0,0,.6);
+  transition:.2s ease;
+  z-index:40;
+  color:var(--text-primary);
+}
+
+.scroll-to-bottom:hover {
+  background:var(--accent);
+  color:var(--accent-text);
+  transform:translateY(-2px);
+  box-shadow:0 12px 32px rgba(0,0,0,.8);
+}
+
+.scroll-to-bottom svg {
+  width:20px;
+  height:20px;
+}
+
+/* =========================================================
+   NEW: HISTORY SIDEBAR
+   ========================================================= */
+.history-btn {
+  position:fixed;
+  top:24px;
+  right:24px;
+  width:48px;
+  height:48px;
+  background:var(--surface);
+  border:1px solid var(--surface-border);
+  border-radius:var(--radius-md);
+  display:grid;
+  place-items:center;
+  cursor:pointer;
+  box-shadow:0 4px 12px rgba(0,0,0,.5);
+  transition:.2s ease;
+  z-index:45;
+  color:var(--text-primary);
+}
+
+.history-btn:hover {
+  background:var(--accent);
+  color:var(--accent-text);
+  transform:scale(1.05);
+}
+
+.history-btn svg {
+  width:20px;
+  height:20px;
+}
+
+.history-sidebar {
+  position:fixed;
+  top:0;
+  right:0;
+  width:min(340px, 85vw);
+  height:100vh;
+  background:var(--surface);
+  border-left:1px solid var(--surface-border);
+  box-shadow:-8px 0 32px rgba(0,0,0,.7);
+  transform:translateX(100%);
+  transition:transform .3s ease;
+  z-index:60;
+  display:flex;
+  flex-direction:column;
+}
+
+.history-sidebar.open {
+  transform:translateX(0);
+}
+
+.history-header {
+  padding:20px;
+  border-bottom:1px solid var(--surface-border);
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.history-header h2 {
+  margin:0;
+  font-size:18px;
+  font-weight:600;
+}
+
+.history-close {
+  background:transparent;
+  border:none;
+  color:var(--text-muted);
+  cursor:pointer;
+  font-size:24px;
+  line-height:1;
+  padding:4px 8px;
+  transition:.15s ease;
+}
+
+.history-close:hover {
+  color:var(--text-primary);
+}
+
+.history-list {
+  flex:1;
+  overflow-y:auto;
+  padding:8px;
+}
+
+.history-item {
+  padding:12px 16px;
+  margin-bottom:8px;
+  background:rgba(255,255,255,.03);
+  border:1px solid transparent;
+  border-radius:var(--radius-md);
+  cursor:pointer;
+  transition:.15s ease;
+}
+
+.history-item:hover {
+  background:rgba(255,255,255,.06);
+  border-color:var(--surface-border);
+}
+
+.history-item.active {
+  background:rgba(255,185,6,.1);
+  border-color:rgba(255,185,6,.3);
+}
+
+.history-preview {
+  font-size:14px;
+  line-height:1.4;
+  color:var(--text-primary);
+  margin-bottom:6px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.history-date {
+  font-size:12px;
+  color:var(--text-muted);
+}
+
+/* =========================================================
+   NEW: PLAYBACK SPEED CONTROL
+   ========================================================= */
+.playback-controls {
+  position:fixed;
+  bottom:180px;
+  right:24px;
+  background:var(--surface);
+  border:1px solid var(--surface-border);
+  border-radius:var(--radius-md);
+  padding:12px 16px;
+  box-shadow:0 8px 24px rgba(0,0,0,.6);
+  display:none;
+  flex-direction:column;
+  gap:8px;
+  z-index:40;
+  min-width:160px;
+}
+
+body.has-started .playback-controls {
+  display:flex;
+}
+
+.playback-controls label {
+  font-size:12px;
+  color:var(--text-muted);
+  text-transform:uppercase;
+  letter-spacing:.5px;
+  font-weight:500;
+}
+
+.playback-controls select {
+  background:var(--bg-main);
+  color:var(--text-primary);
+  border:1px solid var(--surface-border);
+  border-radius:6px;
+  padding:6px 10px;
+  font-size:14px;
+  cursor:pointer;
+  outline:none;
+}
+
+.playback-controls select:hover {
+  border-color:var(--accent);
 }
 
 /* =========================================================
@@ -408,5 +714,21 @@ The page scrolls normally.
   .msg {
     max-width:90%;
     font-size:14px;
+  }
+  .scroll-to-bottom {
+    bottom:100px;
+    right:16px;
+    width:44px;
+    height:44px;
+  }
+  .history-btn {
+    top:16px;
+    right:16px;
+    width:44px;
+    height:44px;
+  }
+  .playback-controls {
+    bottom:160px;
+    right:16px;
   }
 }

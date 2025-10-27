@@ -13,7 +13,7 @@
 
     <!-- Greeting / hero headline (will hide after chat starts) -->
     <section class="hero" id="hero">
-      <h1 class="hero-headline">What’s on the agenda today?</h1>
+      <h1 class="hero-headline">What's on the agenda today?</h1>
 
       <!-- Composer shown IN hero for first load -->
       <form id="form" class="composer hero-composer" autocomplete="off">
@@ -56,6 +56,8 @@
                   <path d="M12 19v4"/>
                 </svg>
               </button>
+              <!-- NEW: Waveform visualization -->
+              <div class="waveform" id="waveform"></div>
             </div>
 
             <!-- send button (only when typing) -->
@@ -119,6 +121,8 @@
                 <path d="M12 19v4"/>
               </svg>
             </button>
+            <!-- NEW: Waveform visualization for docked mode -->
+            <div class="waveform" id="waveform-docked"></div>
           </div>
 
           <button
@@ -139,6 +143,36 @@
     <!-- hidden audio player for assistant voice replies -->
     <audio id="voicePlayer" autoplay style="display:none;"></audio>
   </div>
+
+  <!-- NEW: History sidebar button -->
+  <button class="history-btn" id="history-btn" aria-label="Conversation history">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 3h7v7H3z"/>
+      <path d="M14 3h7v7h-7z"/>
+      <path d="M14 14h7v7h-7z"/>
+      <path d="M3 14h7v7H3z"/>
+    </svg>
+  </button>
+
+  <!-- NEW: History sidebar -->
+  <aside class="history-sidebar" id="history-sidebar">
+    <div class="history-header">
+      <h2>Chat History</h2>
+      <button class="history-close" id="history-close" aria-label="Close">×</button>
+    </div>
+    <div class="history-list" id="history-list">
+      <!-- Populated by JS -->
+    </div>
+  </aside>
+
+  <!-- NEW: Scroll to bottom button -->
+  <button class="scroll-to-bottom" id="scroll-to-bottom" aria-label="Scroll to bottom">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 5v14M19 12l-7 7-7-7"/>
+    </svg>
+  </button>
 
   <!-- calendar modal (keep feature) -->
   <div class="cal-modal" id="cal-modal">

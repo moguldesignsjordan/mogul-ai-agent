@@ -24,17 +24,31 @@ const $calClose    = document.getElementById('cal-close');
 const $calInline   = document.getElementById('cal-inline');
 const $calFallback = document.getElementById('cal-fallback');
 
+// NEW: history sidebar and scroll button
+const $historyBtn  = document.getElementById('history-btn');
+const $historySidebar = document.getElementById('history-sidebar');
+const $historyClose = document.getElementById('history-close');
+const $historyList = document.getElementById('history-list');
+const $scrollBtn   = document.getElementById('scroll-to-bottom');
+const $waveform    = document.getElementById('waveform');
+
 // state
 let calConfig = { calLink: "", brandColor: "#111827" };
 let lastName = "";
 let lastEmail = "";
 let history = [];
 
+// NEW: session management
+let sessionId = null;
+let autoScroll = true;
+
 // voice recorder state
 let mediaRecorder = null;
 let micChunks = [];
 let isRecording = false;
-let didRecordAnything = false; // <- NEW: did we actually start + capture audio
+let audioContext = null;
+let analyser = null;
+let animationId = null;
 
 // whether last user message was voice
 let lastCaptureWasVoice = false;
@@ -44,6 +58,159 @@ let listeningBubbleEl = null;
 
 // whether we've already switched from hero-mode -> chat mode
 let chatStarted = false;
+
+// NEW: typing indicator reference
+let typingIndicatorEl = null;
+
+/* --------------------------
+   SESSION PERSISTENCE
+--------------------------- */
+
+function initSession() {
+  // Get or create session ID
+  sessionId = localStorage.getItem('mogul_session_id');
+  if (!sessionId) {
+    sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('mogul_session_id', sessionId);
+  }
+  
+  // Load conversation history
+  const saved = localStorage.getItem(`mogul_history_${sessionId}`);
+  if (saved) {
+    try {
+      const data = JSON.parse(saved);
+      history = data.messages || [];
+      lastName = data.identity?.name || '';
+      lastEmail = data.identity?.email || '';
+      
+      // Restore messages to UI
+      if (history.length > 0) {
+        activateDockMode();
+        history.forEach(msg => {
+          append(msg.role === 'user' ? 'user' : 'assistant', msg.content, false);
+        });
+        showContinueBanner();
+      }
+    } catch (e) {
+      console.warn('Failed to restore session:', e);
+    }
+  }
+  
+  // Load all sessions for history sidebar
+  loadHistorySidebar();
+}
+
+function saveSession() {
+  if (!sessionId) return;
+  
+  const data = {
+    sessionId,
+    timestamp: Date.now(),
+    messages: history,
+    identity: { name: lastName, email: lastEmail }
+  };
+  
+  localStorage.setItem(`mogul_history_${sessionId}`, JSON.stringify(data));
+  
+  // Update sessions list
+  let sessions = JSON.parse(localStorage.getItem('mogul_sessions') || '[]');
+  sessions = sessions.filter(s => s.id !== sessionId);
+  sessions.unshift({ 
+    id: sessionId, 
+    timestamp: data.timestamp,
+    preview: history[0]?.content.substring(0, 50) || 'New conversation'
+  });
+  sessions = sessions.slice(0, 20); // Keep last 20 sessions
+  localStorage.setItem('mogul_sessions', JSON.stringify(sessions));
+}
+
+function showContinueBanner() {
+  const banner = document.createElement('div');
+  banner.className = 'continue-banner';
+  banner.innerHTML = `
+    <span>📝 Continuing previous conversation</span>
+    <button onclick="startNewSession()">Start Fresh</button>
+  `;
+  $msgs.insertBefore(banner, $msgs.firstChild);
+}
+
+function startNewSession() {
+  sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+  localStorage.setItem('mogul_session_id', sessionId);
+  history = [];
+  lastName = '';
+  lastEmail = '';
+  $msgs.innerHTML = '';
+  document.querySelector('.continue-banner')?.remove();
+  location.reload();
+}
+
+// Make startNewSession available globally for the banner button
+window.startNewSession = startNewSession;
+
+/* --------------------------
+   HISTORY SIDEBAR
+--------------------------- */
+
+function loadHistorySidebar() {
+  if (!$historyList) return;
+  
+  const sessions = JSON.parse(localStorage.getItem('mogul_sessions') || '[]');
+  $historyList.innerHTML = '';
+  
+  sessions.forEach(session => {
+    const item = document.createElement('div');
+    item.className = 'history-item' + (session.id === sessionId ? ' active' : '');
+    const date = new Date(session.timestamp).toLocaleDateString();
+    item.innerHTML = `
+      <div class="history-preview">${session.preview}</div>
+      <div class="history-date">${date}</div>
+    `;
+    item.onclick = () => loadSession(session.id);
+    $historyList.appendChild(item);
+  });
+}
+
+function loadSession(id) {
+  sessionId = id;
+  localStorage.setItem('mogul_session_id', id);
+  location.reload();
+}
+
+function toggleHistorySidebar() {
+  $historySidebar?.classList.toggle('open');
+}
+
+if ($historyBtn) $historyBtn.addEventListener('click', toggleHistorySidebar);
+if ($historyClose) $historyClose.addEventListener('click', toggleHistorySidebar);
+
+/* --------------------------
+   SCROLL MANAGEMENT
+--------------------------- */
+
+function setupScrollManagement() {
+  if (!$scrollBtn) return;
+  
+  const checkScroll = () => {
+    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+    const scrollHeight = document.documentElement.scrollHeight;
+    const clientHeight = document.documentElement.clientHeight;
+    const isNearBottom = scrollHeight - scrollTop - clientHeight < 150;
+    autoScroll = isNearBottom;
+    $scrollBtn.style.display = isNearBottom ? 'none' : 'flex';
+  };
+  
+  window.addEventListener('scroll', checkScroll);
+  $scrollBtn.addEventListener('click', () => {
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+  });
+}
+
+function scrollToBottom() {
+  if (autoScroll) {
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+  }
+}
 
 /* --------------------------
    Internal helpers
@@ -92,8 +259,27 @@ function append(role, text, thinking = false) {
   else div.textContent = text;
 
   $msgs.appendChild(div);
-  $msgs.scrollTop = $msgs.scrollHeight;
+  scrollToBottom();
   return div;
+}
+
+// NEW: show typing indicator
+function showTypingIndicator() {
+  removeTypingIndicator();
+  
+  typingIndicatorEl = document.createElement('div');
+  typingIndicatorEl.className = 'msg assistant typing-indicator';
+  typingIndicatorEl.innerHTML = '<span></span><span></span><span></span>';
+  
+  $msgs.appendChild(typingIndicatorEl);
+  scrollToBottom();
+}
+
+function removeTypingIndicator() {
+  if (typingIndicatorEl) {
+    typingIndicatorEl.remove();
+    typingIndicatorEl = null;
+  }
 }
 
 // show "Listening..." temp bubble
@@ -105,7 +291,7 @@ function showListeningBubble() {
   listeningBubbleEl.innerHTML =
     `<span>Listening</span><span class="listening-dots"></span>`;
   $msgs.appendChild(listeningBubbleEl);
-  $msgs.scrollTop = $msgs.scrollHeight;
+  scrollToBottom();
 }
 
 // finalize listening -> user text or error
@@ -127,6 +313,8 @@ function captureIdentity(text) {
   if (emailMatch) lastEmail = emailMatch[1];
   const nameMatch = text.match(/(?:i am|i'm|my name is|name is)\s+([a-z][a-z\s.'-]{1,60})/i);
   if (nameMatch) lastName = nameMatch[1].trim();
+  
+  saveSession();
 }
 
 /* --------------------------
@@ -153,7 +341,8 @@ function maybeTriggerCalendar(assistantText) {
    Backend chat send
 --------------------------- */
 async function sendChatOnce() {
-  const bubble = append('assistant', '…', true);
+  showTypingIndicator();
+  
   try {
     const res = await fetch('/v1/chat', {
       method:'POST',
@@ -161,10 +350,11 @@ async function sendChatOnce() {
       body: JSON.stringify({ messages: history })
     });
 
+    removeTypingIndicator();
+
     if (!res.ok) {
       const errText = await res.text().catch(()=>res.statusText);
-      bubble.classList.remove('thinking');
-      bubble.innerHTML = `⚠️ ${res.status} ${res.statusText}: ${linkify(errText)}`;
+      const bubble = append('assistant', `⚠️ ${res.status} ${res.statusText}: ${errText}`, false);
       return;
     }
 
@@ -172,16 +362,16 @@ async function sendChatOnce() {
     const assistantMsg = data.message;
     const text = assistantMsg?.content || "⚠️ No response";
 
-    bubble.classList.remove('thinking');
-    bubble.innerHTML = linkify(text);
+    append('assistant', text, false);
     history.push({ role:'assistant', content: text });
+    saveSession();
 
     maybeTriggerCalendar(text);
     if (lastCaptureWasVoice) speakText(text);
 
   } catch (err) {
-    bubble.classList.remove('thinking');
-    bubble.textContent = `⚠️ Network error: ${err}`;
+    removeTypingIndicator();
+    append('assistant', `⚠️ Network error: ${err}`, false);
     console.error(err);
   }
 }
@@ -197,6 +387,7 @@ async function handleSubmit(e){
   captureIdentity(text);
   append('user', text);
   history.push({ role: 'user', content: text });
+  saveSession();
 
   $input.value = '';
   $input.focus();
@@ -207,8 +398,35 @@ async function handleSubmit(e){
 }
 
 /* --------------------------
-   Voice helpers
+   ENHANCED Voice helpers with waveform
 --------------------------- */
+
+function initAudioVisualizer() {
+  if (!$waveform || !window.AudioContext) return;
+  
+  audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  analyser = audioContext.createAnalyser();
+  analyser.fftSize = 256;
+}
+
+function drawWaveform() {
+  if (!analyser || !$waveform) return;
+  
+  const bufferLength = analyser.frequencyBinCount;
+  const dataArray = new Uint8Array(bufferLength);
+  analyser.getByteFrequencyData(dataArray);
+  
+  // Calculate average volume
+  const average = dataArray.reduce((a, b) => a + b) / bufferLength;
+  const scale = Math.min(average / 50, 3);
+  
+  $waveform.style.transform = `scaleX(${scale})`;
+  
+  if (isRecording) {
+    animationId = requestAnimationFrame(drawWaveform);
+  }
+}
+
 async function handleVoiceMessage(audioBlob){
   const fd = new FormData();
   fd.append('audio', audioBlob, 'speech.webm');
@@ -221,13 +439,7 @@ async function handleVoiceMessage(audioBlob){
   } catch (err){ sttError = err.message || String(err); }
 
   if (!heardText) {
-    // instead of "I couldn't hear anything."
-    finalizeListeningBubble(
-      sttError
-        ? "Hold the microphone to record."
-        : "Hold the microphone to record.",
-      true
-    );
+    finalizeListeningBubble(sttError ? "I couldn't transcribe that (STT error)." : "I couldn't hear anything.", true);
     console.warn("STT error detail:", sttError);
     return;
   }
@@ -235,13 +447,14 @@ async function handleVoiceMessage(audioBlob){
   captureIdentity(heardText);
   finalizeListeningBubble(heardText, false);
   history.push({ role:'user', content: heardText });
+  saveSession();
 
   lastCaptureWasVoice = true;
   await sendChatOnce();
 }
 
 /* --------------------------
-   TTS playback of assistant
+   TTS playback
 --------------------------- */
 async function speakText(text){
   if (!text || !$player) return;
@@ -259,23 +472,27 @@ async function speakText(text){
 }
 
 /* --------------------------
-   Mic press+hold -> record
+   Mic press+hold -> record with visualization
 --------------------------- */
-async function actuallyStartRecording(){
-  // guard
+async function startRecording(){
   if(isRecording) return;
-
   isRecording = true;
-  didRecordAnything = true; // <- mark that we genuinely started
 
   if ($mic)     $mic.classList.add('recording');
   if ($micWrap) $micWrap.classList.add('recording');
 
-  // now that we are REALLY recording, show bubble
   showListeningBubble();
 
   micChunks = [];
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  
+  // Setup audio visualization
+  if (audioContext && analyser) {
+    const source = audioContext.createMediaStreamSource(stream);
+    source.connect(analyser);
+    drawWaveform();
+  }
+  
   mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
 
   mediaRecorder.ondataavailable = (e)=>{
@@ -287,18 +504,24 @@ async function actuallyStartRecording(){
 
 async function stopRecording(){
   if(!isRecording) return;
-
   isRecording = false;
 
   if ($mic)     $mic.classList.remove('recording');
   if ($micWrap) $micWrap.classList.remove('recording');
+  
+  if (animationId) {
+    cancelAnimationFrame(animationId);
+    animationId = null;
+  }
+  
+  if ($waveform) {
+    $waveform.style.transform = 'scaleX(1)';
+  }
 
   return new Promise((resolve)=>{
     mediaRecorder.onstop = async ()=>{
       const blob = new Blob(micChunks, { type: 'audio/webm;codecs=opus' });
       micChunks = [];
-
-      // send to STT
       await handleVoiceMessage(blob);
       resolve();
     };
@@ -307,7 +530,7 @@ async function stopRecording(){
 }
 
 /* --------------------------
-   Typing-mode toggle
+   Typing-mode toggle (ORIGINAL LOGIC PRESERVED)
 --------------------------- */
 function updateComposerMode(){
   const hasText = $input.value.trim().length > 0;
@@ -336,41 +559,24 @@ function wireComposerEvents() {
   $input.addEventListener('input', updateComposerMode);
   updateComposerMode();
 
+  // improved hold detection
   if ($mic) {
     let holdTimer;
 
     const handleHoldStart = (e) => {
       e.preventDefault();
-      didRecordAnything = false; // reset every press
       holdTimer = setTimeout(() => {
-        // after 200ms press, we consider it a HOLD -> start actual recording
-        actuallyStartRecording();
+        if ($mic)     $mic.classList.add('recording');
+        if ($micWrap) $micWrap.classList.add('recording');
+        startRecording();
       }, 200);
-    };
-
-    const cleanupUI = () => {
-      if ($mic)     $mic.classList.remove('recording');
-      if ($micWrap) $micWrap.classList.remove('recording');
     };
 
     const handleHoldEnd = () => {
       clearTimeout(holdTimer);
-
-      // CASE A: user released BEFORE we started recording
-      // (quick tap, didRecordAnything === false)
-      if (!isRecording && !didRecordAnything) {
-        // no Listening bubble was created, so just show helper
-        append('assistant', 'Hold the microphone to record.');
-        return;
-      }
-
-      // CASE B: we WERE recording
-      if (isRecording) {
-        stopRecording();
-      } else {
-        // edge safety
-        cleanupUI();
-      }
+      stopRecording();
+      if ($mic)     $mic.classList.remove('recording');
+      if ($micWrap) $micWrap.classList.remove('recording');
     };
 
     $mic.addEventListener('mousedown', handleHoldStart);
@@ -383,4 +589,7 @@ function wireComposerEvents() {
 /* --------------------------
    Init
 --------------------------- */
+initSession();
+initAudioVisualizer();
+setupScrollManagement();
 wireComposerEvents();
