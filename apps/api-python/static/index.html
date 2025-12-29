@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Mogul Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <div class="logo-icon">M</div>
+          <span class="logo-text">Mogul</span>
+        </div>
+        <button class="new-chat-btn" id="newChatBtn" aria-label="New chat">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 5v14M5 12h14"/>
+          </svg>
+        </button>
+      </div>
+      
+      <div class="sidebar-section">
+        <div class="section-label">Recent Chats</div>
+        <div class="chat-list" id="chatList">
+          <!-- Chat history items will be inserted here -->
+        </div>
+      </div>
+      
+      <div class="sidebar-footer">
+        <button class="sidebar-btn" id="settingsBtn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
+          </svg>
+          <span>Settings</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Mobile Header -->
+      <header class="mobile-header">
+        <button class="menu-btn" id="menuBtn" aria-label="Toggle menu">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 12h18M3 6h18M3 18h18"/>
+          </svg>
+        </button>
+        <div class="header-title">Mogul Assistant</div>
+        <button class="voice-mode-btn" id="voiceModeBtn" aria-label="Voice mode">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 1a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+            <path d="M19 10a7 7 0 0 1-14 0"/>
+            <path d="M12 19v4"/>
+          </svg>
+        </button>
+      </header>
+
+      <!-- Chat View -->
+      <div class="chat-view" id="chatView">
+        <!-- Welcome Screen -->
+        <div class="welcome-screen" id="welcomeScreen">
+          <div class="welcome-orb">
+            <div class="orb-glow"></div>
+            <div class="orb-core"></div>
+          </div>
+          <h1 class="welcome-title">How can I help you today?</h1>
+          <p class="welcome-subtitle">I'm your Mogul Design Agency assistant</p>
+          
+          <div class="quick-actions">
+            <button class="quick-action" data-prompt="I'd like to schedule a consultation">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+              <span>Schedule a call</span>
+            </button>
+            <button class="quick-action" data-prompt="Tell me about your design services">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+                <polyline points="2 17 12 22 22 17"/>
+                <polyline points="2 12 12 17 22 12"/>
+              </svg>
+              <span>Our services</span>
+            </button>
+            <button class="quick-action" data-prompt="What's your process for new projects?">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                <line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+              <span>How it works</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Messages Container -->
+        <div class="messages-container" id="messagesContainer">
+          <div class="messages" id="messages"></div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="input-area" id="inputArea">
+          <form class="input-form" id="inputForm">
+            <div class="input-wrapper">
+              <textarea 
+                id="messageInput" 
+                placeholder="Message Mogul Assistant..." 
+                rows="1"
+                aria-label="Message input"
+              ></textarea>
+              <div class="input-actions">
+                <button type="button" class="input-btn mic-btn" id="micBtn" aria-label="Voice input">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 1a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                    <path d="M19 10a7 7 0 0 1-14 0"/>
+                    <path d="M12 19v4"/>
+                  </svg>
+                </button>
+                <button type="submit" class="input-btn send-btn" id="sendBtn" aria-label="Send message" disabled>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="22" y1="2" x2="11" y2="13"/>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Voice Mode Overlay -->
+      <div class="voice-overlay" id="voiceOverlay">
+        <button class="voice-close-btn" id="voiceCloseBtn" aria-label="Close voice mode">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+        
+        <div class="voice-content">
+          <div class="voice-orb" id="voiceOrb">
+            <div class="orb-ring orb-ring-1"></div>
+            <div class="orb-ring orb-ring-2"></div>
+            <div class="orb-ring orb-ring-3"></div>
+            <div class="orb-core">
+              <div class="orb-inner"></div>
+            </div>
+          </div>
+          
+          <div class="voice-status" id="voiceStatus">Tap to start speaking</div>
+          <div class="voice-transcript" id="voiceTranscript"></div>
+        </div>
+        
+        <div class="voice-controls">
+          <button class="voice-control-btn" id="voiceToggleBtn" aria-label="Toggle voice">
+            <svg class="mic-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 1a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+              <path d="M19 10a7 7 0 0 1-14 0"/>
+              <path d="M12 19v4"/>
+            </svg>
+            <svg class="stop-icon" width="32" height="32" viewBox="0 0 24 24" fill="currentColor" style="display:none">
+              <rect x="6" y="6" width="12" height="12" rx="2"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Sidebar Overlay (mobile) -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <!-- Audio Player -->
+  <audio id="audioPlayer" style="display:none"></audio>
+
+  <script src="./chat.js"></script>
+</body>
+</html>

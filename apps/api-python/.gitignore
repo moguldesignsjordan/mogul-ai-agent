@@ -1,0 +1,36 @@
+# virtual envs
+.venv/
+venv/
+env/
+
+# python cache
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# macOS junk
+.DS_Store
+
+# local env / secrets
+.env
+*.env
+
+# firebase admin private key (DO NOT COMMIT THIS)
+mda-database-firebase-adminsdk-*.json
+
+# editor junk
+.vscode/
+.idea/
+.env
+.env.*
+*.env
+*.env.save
+*mda-database-firebase-adminsdk-*.json
+.venv/
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+call_audio/
