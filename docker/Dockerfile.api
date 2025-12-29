@@ -1,0 +1,45 @@
+# ----------------------------------------
+# Dockerfile.api (root-level build)
+# Builds the FastAPI/chat app from apps/api-python
+# ----------------------------------------
+
+FROM python:3.12-slim AS base
+
+WORKDIR /app
+
+# system deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libsndfile1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# 1. copy requirements from the service folder
+COPY ./apps/api-python/requirements.txt /app/requirements.txt
+
+# 2. install python deps
+RUN pip install --no-cache-dir -r /app/requirements.txt
+
+# 3. copy application code from apps/api-python into /app
+COPY ./apps/api-python/main.py /app/main.py
+COPY ./apps/api-python/tools.py /app/tools.py
+COPY ./apps/api-python/models.py /app/models.py
+COPY ./apps/api-python/util /app/util
+COPY ./apps/api-python/mda-database-firebase-adminsdk-fbsvc-6c2f1d2282.json /app/mda-database-firebase-adminsdk-fbsvc-6c2f1d2282.json
+
+# if you have sse.py in apps/api-python, include it:
+# COPY ./apps/api-python/sse.py /app/sse.py
+
+# static assets (index.html, chat.js, styles.css, widget.js)
+COPY ./apps/api-python/static /app/static
+
+# expose internal port
+EXPOSE 8000
+
+# env defaults (overridden at runtime / Cloud Run)
+ENV PORT=8000
+ENV DEFAULT_TZ="America/New_York"
+ENV GOOGLE_APPLICATION_CREDENTIALS="/app/mda-database-firebase-adminsdk-fbsvc-6c2f1d2282.json"
+ENV OPENAI_API_KEY=""
+
+# start uvicorn
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
